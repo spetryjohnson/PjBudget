@@ -205,6 +205,14 @@ public class PaycheckSimulatorTests
 	}
 
 	[Test]
+	public void APaycheckFromAnotherYearIsNotCompared()
+	{
+		var source = TypicalSource() with { ActualPaycheck = new ActualPaycheck(new DateOnly(2027, 1, 8), 3_330m) };
+
+		Assert.That(_simulator.Simulate(Request(source)).Summary.ActualComparison, Is.Null);
+	}
+
+	[Test]
 	public void EmployerContributionsAreTrackedButNotPaid()
 	{
 		var source = TypicalSource() with
@@ -227,7 +235,7 @@ public class PaycheckSimulatorTests
 	}
 
 	[Test]
-	public void HsaContributionsStopAtTheLimitIncludingEmployerMoney()
+	public void EmployerHsaRunsAllYearAndTheEmployeeGetsWhatsLeftOfTheLimit()
 	{
 		var source = TypicalSource() with { HsaEmployeePerCheck = 350m, HsaEmployerPerCheck = 50m };
 
@@ -236,12 +244,27 @@ public class PaycheckSimulatorTests
 
 		Assert.Multiple(() =>
 		{
-			// 400 a check reaches 8,750 during check 22: employer 50 first, then the employee gets the last 300.
-			Assert.That(checks[21].Current.EmployerHsa, Is.EqualTo(50m));
-			Assert.That(checks[21].Current.HsaEmployee, Is.EqualTo(300m));
-			Assert.That(checks[22].Current.HsaEmployee + checks[22].Current.EmployerHsa, Is.EqualTo(0m));
+			// The employer's 24 × 50 = 1,200 is set aside first, leaving 7,550 of the 8,750 family limit:
+			// 21 checks of 350, then 200 on check 22, then nothing.
+			Assert.That(checks[21].Current.HsaEmployee, Is.EqualTo(200m));
+			Assert.That(checks[22].Current.HsaEmployee, Is.EqualTo(0m));
+			Assert.That(checks.Select(c => c.Current.EmployerHsa).Distinct(), Is.EqualTo(new[] { 50m }));
 			Assert.That(checks[^1].YearToDate.HsaEmployee + checks[^1].YearToDate.EmployerHsa, Is.EqualTo(8_750m));
 			Assert.That(simulation.Warnings.Select(w => w.Code), Does.Contain("HSA_LIMIT_REACHED"));
+		});
+	}
+
+	[Test]
+	public void EmployerHsaAloneCanUseUpMostOfASelfOnlyLimit()
+	{
+		var source = TypicalSource() with { HsaEmployeePerCheck = 200m, HsaEmployerPerCheck = 100m };
+
+		var annual = _simulator.Simulate(Request(source, hsaCoverage: HsaCoverage.SelfOnly)).Summary.AnnualTotals;
+
+		Assert.Multiple(() =>
+		{
+			Assert.That(annual.EmployerHsa, Is.EqualTo(2_400m));
+			Assert.That(annual.HsaEmployee, Is.EqualTo(2_000m), "4,400 limit − 2,400 from the employer");
 		});
 	}
 

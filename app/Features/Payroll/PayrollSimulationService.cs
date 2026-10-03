@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using PjBudget.Features.Household;
 using PjBudget.Features.Locales;
 using PjBudget.Features.Payroll.Engine;
+using PjBudget.Features.Payroll.Engine.States;
 using PjBudget.Features.TaxYears;
 using PjBudget.Shared.Database;
 using PjBudget.Shared.Domain;
@@ -22,14 +23,16 @@ public sealed class PayrollSimulationService
 	private readonly TaxYearService _taxYears;
 	private readonly PaycheckSimulator _simulator;
 	private readonly PayrollSourceValidator _validator;
+	private readonly StateTaxModules _states;
 
 	public PayrollSimulationService(
-		AppDbContext db, TaxYearService taxYears, PaycheckSimulator simulator, PayrollSourceValidator validator)
+		AppDbContext db, TaxYearService taxYears, PaycheckSimulator simulator, PayrollSourceValidator validator, StateTaxModules states)
 	{
 		_db = db;
 		_taxYears = taxYears;
 		_simulator = simulator;
 		_validator = validator;
+		_states = states;
 	}
 
 	public async Task<PayrollSimulation> SimulateSavedAsync(int scenarioId, int sourceId, int year, CancellationToken ct)
@@ -91,6 +94,12 @@ public sealed class PayrollSimulationService
 	{
 		var birthDate = await _db.People.Where(p => p.Id == model.PersonId).Select(p => p.BirthDate).SingleAsync(ct);
 		var work = await _db.Locales.AsNoTracking().SingleAsync(l => l.Id == model.WorkLocaleId, ct);
+
+		// Saved sources aren't re-validated when reference data changes, so check again rather than fail deep in the engine.
+		if (!_states.IsSupported(work.StateCode))
+		{
+			throw new DomainValidationException("workLocaleId", $"Taxes for {work.StateCode} aren't supported yet.");
+		}
 
 		return _simulator.Simulate(new PayrollSimulationRequest(
 			context.Year,

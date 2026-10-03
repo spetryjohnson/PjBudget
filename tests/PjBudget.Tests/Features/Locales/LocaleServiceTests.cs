@@ -84,6 +84,23 @@ public class LocaleServiceTests
 	}
 
 	[Test]
+	public async Task ALocaleInUseCantMoveToAnUnsupportedState()
+	{
+		var baseline = await TestServices.SeedBaselineAsync(_database);
+		var locale = (await TestServices.Locales(_database.CreateContext()).ListAsync(CancellationToken.None)).Single();
+		locale.StateCode = "MI";
+
+		var error = Assert.ThrowsAsync<DomainValidationException>(
+			() => TestServices.Locales(_database.CreateContext()).UpdateAsync(baseline.LocaleId, locale, CancellationToken.None));
+		Assert.That(error!.Errors.Keys, Is.EqualTo(new[] { "stateCode" }));
+
+		var unused = await TestServices.Locales(_database.CreateContext()).CreateAsync(Columbus(), CancellationToken.None);
+		unused.StateCode = "MI";
+		var moved = await TestServices.Locales(_database.CreateContext()).UpdateAsync(unused.Id, unused, CancellationToken.None);
+		Assert.That(moved.StateCode, Is.EqualTo("MI"), "a locale nothing uses can be in any state");
+	}
+
+	[Test]
 	public async Task ALocaleInUseCantBeDeleted()
 	{
 		var baseline = await TestServices.SeedBaselineAsync(_database);

@@ -46,7 +46,9 @@ public sealed class TaxYearModelValidator : AbstractValidator<TaxYearModel>
 		RuleForEach(x => x.FilingStatuses).ChildRules(f =>
 		{
 			f.RuleFor(x => x.StandardDeduction).GreaterThanOrEqualTo(0);
-			f.RuleFor(x => x.StandardWithholdingAdjustment).GreaterThanOrEqualTo(0);
+			f.RuleFor(x => x.StandardWithholdingAdjustment).GreaterThanOrEqualTo(0)
+				.LessThanOrEqualTo(x => x.StandardDeduction)
+				.WithMessage("The W-4 line 1g amount can't be more than the standard deduction.");
 			f.RuleFor(x => x.AdditionalMedicareLiabilityThreshold).GreaterThan(0);
 		});
 

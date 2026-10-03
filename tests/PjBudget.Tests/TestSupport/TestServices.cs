@@ -18,12 +18,12 @@ public static class TestServices
 {
 	public static readonly StateTaxModules States = new([new OhioTaxModule()]);
 
-	public static LocaleService Locales(AppDbContext db) => new(db);
+	public static LocaleService Locales(AppDbContext db) => new(db, States);
 	public static PersonService People(AppDbContext db) => new(db);
 	public static HouseholdService Household(AppDbContext db) => new(db, States);
 
 	public static PayrollSimulationService Simulations(AppDbContext db)
-		=> new(db, new TaxYearService(db), PayrollTestData.Simulator(), new PayrollSourceValidator(db, States));
+		=> new(db, new TaxYearService(db), PayrollTestData.Simulator(), new PayrollSourceValidator(db, States), States);
 
 	public static PayrollSourceService PayrollSources(AppDbContext db)
 		=> new(db, new PayrollSourceValidator(db, States), Simulations(db));

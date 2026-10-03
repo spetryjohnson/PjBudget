@@ -114,6 +114,45 @@ public class PayrollSourceServiceTests
 		Assert.That(referenceErrors!.Errors.Keys, Is.EquivalentTo(new[] { "personId", "workLocaleId" }));
 	}
 
+	[TestCase(1, 31, false)]
+	[TestCase(30, 31, false)]
+	[TestCase(10, 15, false)]
+	[TestCase(10, 25, true)]
+	[TestCase(15, 31, true)]
+	[TestCase(1, 15, true)]
+	public async Task SemimonthlyPaydaysMustBeAWeekApartSoShiftedDatesCantMerge(int day1, int day2, bool valid)
+	{
+		var model = TestServices.SalariedSource(_baseline);
+		model.SemimonthlyPayDay1 = day1;
+		model.SemimonthlyPayDay2 = day2;
+
+		if (valid)
+		{
+			Assert.That((await CreateAsync(model)).Id, Is.GreaterThan(0));
+		}
+		else
+		{
+			var error = Assert.ThrowsAsync<DomainValidationException>(() => CreateAsync(model));
+			Assert.That(error!.Errors.Keys, Is.EqualTo(new[] { "semimonthlyPayDay2" }));
+		}
+	}
+
+	[Test]
+	public async Task ASourceWhoseLocaleIsNoLongerSupportedReportsAnErrorInsteadOfFailing()
+	{
+		await CreateAsync();
+		await using (var db = _database.CreateContext())
+		{
+			// Simulates data that predates the guard against moving an in-use locale to an unsupported state.
+			db.Locales.Single(l => l.Id == _baseline.LocaleId).StateCode = "MI";
+			await db.SaveChangesAsync();
+		}
+
+		var summary = (await Service().ListAsync(_baseline.ScenarioId, 2026, CancellationToken.None)).Single();
+
+		Assert.That(summary.SimulationError, Does.Contain("Taxes for MI aren't supported"));
+	}
+
 	[Test]
 	public void BiweeklyPayNeedsAnAnchorDate()
 	{

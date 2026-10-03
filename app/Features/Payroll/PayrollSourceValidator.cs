@@ -72,7 +72,9 @@ public sealed class PayrollSourceModelValidator : AbstractValidator<PayrollSourc
 				.WithMessage("Enter a day of the month from 1 to 31.");
 			RuleFor(x => x.SemimonthlyPayDay2).Must(d => d is >= 1 and <= 31)
 				.WithMessage("Enter a day of the month from 1 to 31.")
-				.GreaterThan(x => x.SemimonthlyPayDay1).WithMessage("The second payday must come after the first.");
+				.GreaterThan(x => x.SemimonthlyPayDay1).WithMessage("The second payday must come after the first.")
+				.Must((x, day2) => PaydaysAreAWeekApart(x.SemimonthlyPayDay1, day2))
+				.WithMessage("Paydays need to be at least a week apart, including from the second payday to the next month's first.");
 		});
 		RuleFor(x => x.BiweeklyAnchorDate).NotNull().When(x => x.PayFrequency == PayFrequency.Biweekly)
 			.WithMessage("Enter the date of any payday so the schedule can be counted from it.");
@@ -110,4 +112,13 @@ public sealed class PayrollSourceModelValidator : AbstractValidator<PayrollSourc
 			d.RuleFor(x => x.PerCheckOverride).GreaterThanOrEqualTo(0).When(x => x.PerCheckOverride is not null);
 		});
 	}
+
+	/// <summary>
+	/// Weekend and holiday shifts move a payday back by up to four days. Paydays closer together than that could land
+	/// on the same date and silently merge into one check. The gap across the month boundary is measured in February,
+	/// the shortest month.
+	/// </summary>
+	private static bool PaydaysAreAWeekApart(int? day1, int? day2)
+		=> day1 is not { } first || day2 is not { } second
+		   || (second - first >= 7 && first + 28 - Math.Min(second, 28) >= 7);
 }

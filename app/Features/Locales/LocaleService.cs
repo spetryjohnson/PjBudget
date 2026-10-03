@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using PjBudget.Features.Payroll.Engine.States;
 using PjBudget.Shared.Database;
 using PjBudget.Shared.Errors;
 
@@ -9,8 +10,13 @@ public sealed class LocaleService
 	private static readonly LocaleModelValidator Validator = new();
 
 	private readonly AppDbContext _db;
+	private readonly StateTaxModules _states;
 
-	public LocaleService(AppDbContext db) => _db = db;
+	public LocaleService(AppDbContext db, StateTaxModules states)
+	{
+		_db = db;
+		_states = states;
+	}
 
 	public async Task<IReadOnlyList<LocaleModel>> ListAsync(CancellationToken ct)
 	{
@@ -36,6 +42,15 @@ public sealed class LocaleService
 
 		var locale = await FindAsync(id, ct);
 		locale.EnsureVersion(model.Version, $"Locale '{locale.Name}'");
+
+		// Paychecks are simulated with the tax rules of the locale's state, so a locale in use can't move to a state
+		// that has none.
+		if (model.StateCode != locale.StateCode && !_states.IsSupported(model.StateCode) && await IsInUseAsync(id, ct))
+		{
+			throw new DomainValidationException("stateCode",
+				$"This locale is used by a payroll source or as the household's home, and taxes for {model.StateCode} aren't supported yet.");
+		}
+
 		Apply(model, locale);
 		await _db.SaveChangesAsync(ct);
 
@@ -46,9 +61,7 @@ public sealed class LocaleService
 	{
 		var locale = await FindAsync(id, ct);
 
-		var inUse = await _db.PayrollSources.AnyAsync(s => s.WorkLocaleId == id, ct)
-		            || await _db.HouseholdProfiles.AnyAsync(h => h.HomeLocaleId == id, ct);
-		if (inUse)
+		if (await IsInUseAsync(id, ct))
 		{
 			throw new ConflictException($"'{locale.Name}' is used by a payroll source or as the household's home, so it can't be deleted.");
 		}
@@ -56,6 +69,10 @@ public sealed class LocaleService
 		_db.Locales.Remove(locale);
 		await _db.SaveChangesAsync(ct);
 	}
+
+	private async Task<bool> IsInUseAsync(int id, CancellationToken ct)
+		=> await _db.PayrollSources.AnyAsync(s => s.WorkLocaleId == id, ct)
+		   || await _db.HouseholdProfiles.AnyAsync(h => h.HomeLocaleId == id, ct);
 
 	private async Task<Locale> FindAsync(int id, CancellationToken ct)
 		=> await _db.Locales.SingleOrDefaultAsync(l => l.Id == id, ct)

@@ -28,23 +28,32 @@ public sealed class PaycheckSimulator
 		var periods = PayScheduleGenerator.PeriodsPerYear(source.Schedule.Frequency);
 		var ageAtYearEnd = request.PersonBirthDate is { } birthDate ? request.Year - birthDate.Year : (int?)null;
 
+		var payDates = _schedule.PayDates(source.Schedule, request.Year);
+
+		// Employers commit to their HSA contributions for the whole year, so payroll only lets the employee elect
+		// what's left of the limit. The employee's contributions are the ones that stop early, not the employer's.
+		var hsaLimit = request.TaxYear.Limits.HsaLimitFor(request.HsaCoverage, ageAtYearEnd);
+		var employerHsa = Math.Min(source.HsaEmployerPerCheck * payDates.Count, hsaLimit);
+
 		var limits = new AnnualLimits(
 			request.TaxYear.Limits.ElectiveDeferralLimitFor(ageAtYearEnd),
-			request.TaxYear.Limits.HsaLimitFor(request.HsaCoverage, ageAtYearEnd),
+			hsaLimit,
+			employerHsa,
+			hsaLimit - employerHsa,
 			Math.Min(source.HealthFsaAnnualElection, request.TaxYear.Limits.HealthFsa));
 
 		var calculator = new CheckCalculator(request, periods, limits, _states.For(request.Work.StateCode));
 		var checks = new List<Paycheck>();
 		var yearToDate = PaycheckLines.Zero(source.Deductions.Count);
 
-		foreach (var payDate in _schedule.PayDates(source.Schedule, request.Year))
+		foreach (var payDate in payDates)
 		{
 			var current = calculator.Calculate(yearToDate);
 			yearToDate = yearToDate.Plus(current);
 			checks.Add(new Paycheck(checks.Count + 1, payDate, current, yearToDate));
 		}
 
-		var summary = Summarize(source, checks, limits);
+		var summary = Summarize(request.Year, source, checks, limits);
 
 		return new PayrollSimulation(
 			request.Year,
@@ -55,7 +64,11 @@ public sealed class PaycheckSimulator
 			Warnings(request, checks, summary, limits, periods));
 	}
 
-	private readonly record struct AnnualLimits(decimal Traditional401k, decimal Hsa, decimal HealthFsa);
+	/// <param name="Hsa">The HSA limit for the household's coverage, including catch-up.</param>
+	/// <param name="EmployerHsa">What the employer will contribute this year, up to the limit.</param>
+	/// <param name="EmployeeHsa">What's left of the limit for the employee's own contributions.</param>
+	private readonly record struct AnnualLimits(
+		decimal Traditional401k, decimal Hsa, decimal EmployerHsa, decimal EmployeeHsa, decimal HealthFsa);
 
 	private sealed class CheckCalculator
 	{
@@ -92,10 +105,8 @@ public sealed class PaycheckSimulator
 				_source.Traditional401kPerCheckOverride ?? PercentOf(_basePay, _source.Traditional401kPercent),
 				_limits.Traditional401k - ytd.Traditional401k);
 
-			// Employer HSA money counts toward the same limit, and employers fund their share first.
-			var hsaRoom = _limits.Hsa - ytd.HsaEmployee - ytd.EmployerHsa;
-			var employerHsa = Capped(_source.HsaEmployerPerCheck, hsaRoom);
-			var hsa = Capped(_source.HsaEmployeePerCheck, hsaRoom - employerHsa);
+			var employerHsa = Capped(_source.HsaEmployerPerCheck, _limits.EmployerHsa - ytd.EmployerHsa);
+			var hsa = Capped(_source.HsaEmployeePerCheck, _limits.EmployeeHsa - ytd.HsaEmployee);
 
 			var fsa = Capped(
 				_source.HealthFsaPerCheckOverride ?? Money.Round(_source.HealthFsaAnnualElection / _periods),
@@ -174,13 +185,16 @@ public sealed class PaycheckSimulator
 		}
 	}
 
-	private static PayrollSummary Summarize(PayrollSourceInput source, IReadOnlyList<Paycheck> checks, AnnualLimits limits)
+	private static PayrollSummary Summarize(int year, PayrollSourceInput source, IReadOnlyList<Paycheck> checks, AnnualLimits limits)
 	{
 		var annual = checks.Count > 0 ? checks[^1].YearToDate : PaycheckLines.Zero(source.Deductions.Count);
 		var netPays = checks.Select(c => c.Current.NetPay).ToList();
 		var finalSocialSecurityCheck = checks.LastOrDefault(c => c.Current.SocialSecurityTax > 0)?.Number ?? 0;
 		var actual = source.ActualPaycheck;
-		var actualCheck = actual is null ? null : checks.LastOrDefault(c => c.PayDate <= actual.PayDate);
+		// A paycheck from another year can't be compared with this year's simulation.
+		var actualCheck = actual is null || actual.PayDate.Year != year
+			? null
+			: checks.LastOrDefault(c => c.PayDate <= actual.PayDate);
 
 		return new PayrollSummary
 		{
@@ -252,11 +266,12 @@ public sealed class PaycheckSimulator
 			warnings.Add(new PayrollWarning("HSA_NO_COVERAGE",
 				"HSA contributions are ignored because the household's HSA coverage is set to none."));
 		}
-		else if (hsaPerCheck > 0 && checks.FirstOrDefault(c => c.YearToDate.HsaEmployee + c.YearToDate.EmployerHsa >= limits.Hsa) is { } hsaCheck
+		else if (source.HsaEmployeePerCheck > 0
+		         && checks.FirstOrDefault(c => c.YearToDate.HsaEmployee >= limits.EmployeeHsa) is { } hsaCheck
 		         && hsaCheck.Number < checks.Count)
 		{
 			warnings.Add(new PayrollWarning("HSA_LIMIT_REACHED", string.Create(UsCulture,
-				$"HSA contributions reach the {limits.Hsa:C0} limit (including employer contributions) on check {hsaCheck.Number} of {checks.Count}.")));
+				$"Your HSA contributions reach the {limits.Hsa:C0} limit (which includes {limits.EmployerHsa:C0} from your employer) on check {hsaCheck.Number} of {checks.Count}; later checks have no HSA deduction.")));
 		}
 
 		if (source.HealthFsaAnnualElection > request.TaxYear.Limits.HealthFsa)

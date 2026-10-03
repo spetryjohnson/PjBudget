@@ -89,6 +89,18 @@ public class TaxYearServiceTests
 	}
 
 	[Test]
+	public async Task TheLine1gAmountCantExceedTheStandardDeduction()
+	{
+		var model = await CreateService().GetAsync(2026, CancellationToken.None);
+		var single = model.FilingStatuses.Single(f => f.FilingStatus == FilingStatus.Single);
+		single.StandardWithholdingAdjustment = single.StandardDeduction + 1_000m;
+
+		var error = Assert.ThrowsAsync<DomainValidationException>(() => CreateService().UpdateAsync(2026, model, CancellationToken.None));
+
+		Assert.That(error!.Errors.Keys.Single(), Does.EndWith(".standardWithholdingAdjustment"));
+	}
+
+	[Test]
 	public async Task CopyCreatesAnIndependentYear()
 	{
 		await CreateService().CopyAsync(2026, 2027, CancellationToken.None);

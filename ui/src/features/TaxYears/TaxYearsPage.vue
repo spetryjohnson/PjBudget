@@ -3,11 +3,11 @@
 		<div class="page-header">
 			<h1>Tax years</h1>
 			<div class="page-actions">
-				<v-btn-toggle v-model="selectedYear" mandatory density="compact" color="primary" variant="outlined" divided>
+				<v-btn-toggle :model-value="selectedYear" mandatory density="compact" color="primary" variant="outlined" divided @update:model-value="selectYear">
 					<v-btn v-for="y in store.years" :key="y" :value="y">{{ y }}</v-btn>
 				</v-btn-toggle>
-				<v-btn variant="text" prepend-icon="mdi-content-copy" :disabled="!draft" @click="copyYear">Copy to {{ nextYear }}</v-btn>
-				<v-btn variant="text" color="error" prepend-icon="mdi-delete-outline" :disabled="!draft" @click="deleteYear">Delete</v-btn>
+				<v-btn variant="text" prepend-icon="mdi-content-copy" :disabled="!draft || dirty" @click="copyYear">Copy to {{ nextYear }}</v-btn>
+				<v-btn variant="text" color="error" prepend-icon="mdi-delete-outline" :disabled="!draft || dirty" @click="deleteYear">Delete</v-btn>
 				<v-chip v-if="dirty" size="small" color="warning" variant="tonal">Unsaved changes</v-chip>
 				<v-btn color="primary" variant="flat" prepend-icon="mdi-content-save" :disabled="!dirty" :loading="saving" @click="save">Save</v-btn>
 			</div>
@@ -192,7 +192,7 @@
 </template>
 
 <script setup lang="ts">
-	import { computed, onMounted, ref, watch } from 'vue'
+	import { computed, onMounted, ref } from 'vue'
 	import { onBeforeRouteLeave } from 'vue-router'
 	import NumberField from '../../components/NumberField.vue'
 	import { allMessages, toApiError } from '../../lib/apiErrors'
@@ -220,19 +220,24 @@
 
 	onMounted(async () => {
 		await store.refreshTaxYears()
-		selectedYear.value = store.years.includes(new Date().getFullYear()) ? new Date().getFullYear() : lastYear()
+		const currentYear = new Date().getFullYear()
+		await showYear(store.years.includes(currentYear) ? currentYear : lastYear())
 	})
 
-	watch(selectedYear, async (year, previous) => {
-		if (year == null) return
-		if (dirty.value && previous != null && !window.confirm(`Discard unsaved changes to ${previous}?`)) {
-			selectedYear.value = previous
+	/** Switching years from the toggle. If the user keeps their edits, the toggle stays on the year being edited. */
+	async function selectYear(year: number | null) {
+		if (year == null || year === selectedYear.value) return
+		if (dirty.value && !window.confirm(`Discard unsaved changes to ${selectedYear.value}?`)) return
+		await showYear(year)
+	}
+
+	async function showYear(year: number | null) {
+		selectedYear.value = year
+		if (year == null) {
+			draft.value = null
 			return
 		}
-		await load(year)
-	})
 
-	async function load(year: number) {
 		const taxYear = await taxYearsApi.get(year)
 		draft.value = taxYear
 		savedSnapshot.value = JSON.stringify(taxYear)
@@ -288,8 +293,7 @@
 		try {
 			const copy = await taxYearsApi.copy(draft.value.year, nextYear.value)
 			await store.refreshTaxYears()
-			savedSnapshot.value = JSON.stringify(draft.value)
-			selectedYear.value = copy.year
+			await showYear(copy.year)
 			show('success', `Created ${copy.year}. Update the values that changed and save.`)
 		} catch (e) {
 			show('error', (await toApiError(e)).message)
@@ -300,10 +304,8 @@
 		if (!draft.value || !window.confirm(`Delete the ${draft.value.year} tax rules? Paychecks for that year can't be simulated without them.`)) return
 		try {
 			await taxYearsApi.remove(draft.value.year)
-			savedSnapshot.value = JSON.stringify(draft.value)
 			await store.refreshTaxYears()
-			draft.value = null
-			selectedYear.value = lastYear()
+			await showYear(lastYear())
 		} catch (e) {
 			show('error', (await toApiError(e)).message)
 		}
