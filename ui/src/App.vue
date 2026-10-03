@@ -15,8 +15,35 @@
 					<ul class="nav-list">
 						<li class="nav-item">
 							<router-link to="/" class="nav-link">
-								<v-icon icon="mdi-home" class="nav-icon" />
+								<v-icon icon="mdi-view-dashboard-outline" class="nav-icon" />
 								<span class="nav-text">Home</span>
+							</router-link>
+						</li>
+						<li class="nav-item">
+							<router-link to="/payroll" class="nav-link">
+								<v-icon icon="mdi-cash-multiple" class="nav-icon" />
+								<span class="nav-text">Payroll</span>
+							</router-link>
+						</li>
+						<li class="nav-item">
+							<router-link to="/household" class="nav-link">
+								<v-icon icon="mdi-home-account" class="nav-icon" />
+								<span class="nav-text">Household</span>
+							</router-link>
+						</li>
+					</ul>
+					<div class="nav-heading">Settings</div>
+					<ul class="nav-list">
+						<li class="nav-item">
+							<router-link to="/settings/locales" class="nav-link">
+								<v-icon icon="mdi-map-marker-outline" class="nav-icon" />
+								<span class="nav-text">Locales</span>
+							</router-link>
+						</li>
+						<li class="nav-item">
+							<router-link to="/settings/tax-years" class="nav-link">
+								<v-icon icon="mdi-file-percent-outline" class="nav-icon" />
+								<span class="nav-text">Tax years</span>
 							</router-link>
 						</li>
 					</ul>
@@ -154,6 +181,15 @@
 		margin-bottom: 0.25rem;
 	}
 
+	.nav-heading {
+		margin: 1rem 1.5rem 0.25rem;
+		font-size: 0.75rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: #6c757d;
+	}
+
 	.nav-link {
 		display: flex;
 		align-items: center;
@@ -192,7 +228,8 @@
 
 	.content-area {
 		flex: 1;
-		padding: 1.5rem 2rem;
+		padding: 1.25rem 1.5rem;
+		min-width: 0;
 	}
 
 	.auth-shell {

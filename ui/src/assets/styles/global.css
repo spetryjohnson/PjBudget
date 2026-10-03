@@ -9,3 +9,60 @@ body {
 	color: #212529;
 	background-color: #ffffff;
 }
+
+/* ---- Page scaffolding shared by feature pages ---- */
+
+.page-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	flex-wrap: wrap;
+	margin-bottom: 0.75rem;
+}
+
+.page-header h1 {
+	margin: 0;
+	font-size: 1.5rem;
+	font-weight: 600;
+}
+
+.page-actions {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+}
+
+.hint {
+	color: #6c757d;
+	font-size: 0.875rem;
+	margin: 0 0 0.75rem;
+}
+
+.section-title {
+	font-size: 0.95rem !important;
+	font-weight: 600 !important;
+	padding-bottom: 0 !important;
+}
+
+/* Money and other figures line up when every digit is the same width. */
+.num {
+	text-align: right !important;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.empty-row {
+	color: #6c757d;
+	font-style: italic;
+	text-align: center !important;
+}
+
+.clickable-row {
+	cursor: pointer;
+}
+
+.clickable-row:hover {
+	background-color: #f1f5fb;
+}
