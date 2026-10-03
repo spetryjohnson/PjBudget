@@ -1,3 +1,7 @@
+using PjBudget.Features.Household;
+using PjBudget.Features.Locales;
+using PjBudget.Features.Payroll;
+using PjBudget.Features.People;
 using PjBudget.Features.Scenarios;
 using PjBudget.Features.TaxYears;
 using PjBudget.Shared.Database.Entities;
@@ -15,6 +19,10 @@ public class AppDbContext
 
 	public DbSet<Scenario> Scenarios => Set<Scenario>();
 	public DbSet<TaxYear> TaxYears => Set<TaxYear>();
+	public DbSet<Locale> Locales => Set<Locale>();
+	public DbSet<Person> People => Set<Person>();
+	public DbSet<HouseholdProfile> HouseholdProfiles => Set<HouseholdProfile>();
+	public DbSet<PayrollSource> PayrollSources => Set<PayrollSource>();
 
 	protected override void OnModelCreating(ModelBuilder b)
 	{
@@ -31,6 +39,7 @@ public class AppDbContext
 
 		// Conventions go last so they see every property configured above.
 		b.UseStringConstantsForEnums();
+		b.UseUtcDateTimes();
 		b.UseVersionConcurrencyTokens();
 	}
 }

@@ -1,4 +1,5 @@
 using PjBudget.Features.Authentication;
+using PjBudget.Features.Household;
 using PjBudget.Features.Identity;
 using PjBudget.Features.Scenarios;
 using PjBudget.Features.TaxYears;
@@ -61,7 +62,8 @@ public static class SeedData
 				                                    string.Join("; ", resetResult.Errors));
 		}
 
-		await ScenarioSeeder.EnsureCurrentScenarioAsync(db);
+		var currentScenario = await ScenarioSeeder.EnsureCurrentScenarioAsync(db);
+		await HouseholdSeeder.EnsureProfileAsync(db, currentScenario.Id);
 		await TaxYearSeeder.EnsureSeededAsync(db);
 	}
 }

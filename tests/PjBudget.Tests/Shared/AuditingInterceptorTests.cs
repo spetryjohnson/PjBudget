@@ -53,6 +53,19 @@ public class AuditingInterceptorTests
 	}
 
 	[Test]
+	public void TimestampsComeBackFromTheDatabaseAsUtc()
+	{
+		using (var db = _database.CreateContext())
+		{
+			db.Scenarios.Add(new Scenario { Name = "Test" });
+			db.SaveChanges();
+		}
+
+		using var reloaded = _database.CreateContext();
+		Assert.That(reloaded.Scenarios.Single().UpdatedAt.Kind, Is.EqualTo(DateTimeKind.Utc));
+	}
+
+	[Test]
 	public void ConcurrentUpdateOfAStaleCopyIsRejected()
 	{
 		int id;

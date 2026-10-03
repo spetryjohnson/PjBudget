@@ -2,7 +2,13 @@ using FastEndpoints;
 using FastEndpoints.Swagger;
 using PjBudget.Features.Authentication;
 using PjBudget.Features.BackgroundTasks;
+using PjBudget.Features.Household;
 using PjBudget.Features.Identity;
+using PjBudget.Features.Locales;
+using PjBudget.Features.Payroll;
+using PjBudget.Features.Payroll.Engine;
+using PjBudget.Features.Payroll.Engine.States;
+using PjBudget.Features.People;
 using PjBudget.Features.Scenarios;
 using PjBudget.Features.TaxYears;
 using PjBudget.Shared.AppStartup;
@@ -57,6 +63,18 @@ builder.Services.AddProblemDetails();
 // Feature services
 builder.Services.AddScoped<ICurrentScenarioAccessor, CurrentScenarioAccessor>();
 builder.Services.AddScoped<TaxYearService>();
+builder.Services.AddScoped<LocaleService>();
+builder.Services.AddScoped<PersonService>();
+builder.Services.AddScoped<HouseholdService>();
+builder.Services.AddScoped<PayrollSourceValidator>();
+builder.Services.AddScoped<PayrollSourceService>();
+builder.Services.AddScoped<PayrollSimulationService>();
+
+// Payroll engine (stateless). Register additional states' tax modules here.
+builder.Services.AddSingleton<IStateTaxModule, OhioTaxModule>();
+builder.Services.AddSingleton<StateTaxModules>();
+builder.Services.AddSingleton<PayScheduleGenerator>();
+builder.Services.AddSingleton<PaycheckSimulator>();
 
 // Background services (sample). Add additional hosted services here as the app grows.
 builder.Services.AddHostedService<SampleDailyService>();
@@ -124,6 +142,7 @@ app.UseFastEndpoints(c =>
 {
 	c.Serializer.Options.Converters.Add(new StringConstantEnumJsonConverterFactory());
 });
+ValidationSetup.UseSentenceCaseDisplayNames();
 app.UseSwaggerGen();
 
 // MCP endpoints are NOT mapped here. See app/Features/Mcp/McpSetup.cs for how to enable.

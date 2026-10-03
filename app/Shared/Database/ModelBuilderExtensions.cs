@@ -27,6 +27,25 @@ public static class ModelBuilderExtensions
 	}
 
 	/// <summary>
+	/// Every DateTime is stored in UTC, but SQLite returns them without a kind, and they would then serialize without
+	/// a "Z" and be read as local time by the browser. This marks them as UTC on the way back in.
+	/// </summary>
+	public static ModelBuilder UseUtcDateTimes(this ModelBuilder modelBuilder)
+	{
+		var converter = new ValueConverter<DateTime, DateTime>(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+		foreach (var property in modelBuilder.Model.GetEntityTypes().SelectMany(t => t.GetProperties()))
+		{
+			if (property.ClrType == typeof(DateTime) || property.ClrType == typeof(DateTime?))
+			{
+				property.SetValueConverter(converter);
+			}
+		}
+
+		return modelBuilder;
+	}
+
+	/// <summary>
 	/// Makes <see cref="IVersionedEntity.Version"/> an optimistic concurrency token on every versioned entity.
 	/// </summary>
 	public static ModelBuilder UseVersionConcurrencyTokens(this ModelBuilder modelBuilder)
