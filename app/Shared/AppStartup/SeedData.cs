@@ -1,6 +1,7 @@
 using PjBudget.Features.Authentication;
 using PjBudget.Features.Identity;
 using PjBudget.Features.Scenarios;
+using PjBudget.Features.TaxYears;
 using PjBudget.Shared.Database;
 using PjBudget.Shared.Database.Entities;
 using Microsoft.AspNetCore.Identity;
@@ -61,5 +62,6 @@ public static class SeedData
 		}
 
 		await ScenarioSeeder.EnsureCurrentScenarioAsync(db);
+		await TaxYearSeeder.EnsureSeededAsync(db);
 	}
 }

@@ -4,6 +4,7 @@ using PjBudget.Features.Authentication;
 using PjBudget.Features.BackgroundTasks;
 using PjBudget.Features.Identity;
 using PjBudget.Features.Scenarios;
+using PjBudget.Features.TaxYears;
 using PjBudget.Shared.AppStartup;
 using PjBudget.Shared.Database;
 using PjBudget.Shared.Errors;
@@ -55,6 +56,7 @@ builder.Services.AddProblemDetails();
 
 // Feature services
 builder.Services.AddScoped<ICurrentScenarioAccessor, CurrentScenarioAccessor>();
+builder.Services.AddScoped<TaxYearService>();
 
 // Background services (sample). Add additional hosted services here as the app grows.
 builder.Services.AddHostedService<SampleDailyService>();

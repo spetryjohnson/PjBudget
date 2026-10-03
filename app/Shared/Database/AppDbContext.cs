@@ -1,4 +1,5 @@
 using PjBudget.Features.Scenarios;
+using PjBudget.Features.TaxYears;
 using PjBudget.Shared.Database.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -13,6 +14,7 @@ public class AppDbContext
 		: base(options) { }
 
 	public DbSet<Scenario> Scenarios => Set<Scenario>();
+	public DbSet<TaxYear> TaxYears => Set<TaxYear>();
 
 	protected override void OnModelCreating(ModelBuilder b)
 	{
