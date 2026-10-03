@@ -44,3 +44,14 @@ public sealed class TaxScheduleRowModel
 	public decimal BaseAmount { get; set; }
 	public decimal Rate { get; set; }
 }
+
+/// <summary>
+/// The IRS Pub 15-T withholding tables the engine derives from a year's brackets, shown so they can be checked
+/// against the published tables when a new year is entered.
+/// </summary>
+public sealed record WithholdingTablesModel(
+	FilingStatus FilingStatus,
+	IReadOnlyList<WithholdingTableRowModel> Standard,
+	IReadOnlyList<WithholdingTableRowModel> Step2Checkbox);
+
+public sealed record WithholdingTableRowModel(decimal AtLeast, decimal TentativeAmount, decimal Rate);

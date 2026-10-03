@@ -28,11 +28,11 @@ public sealed class LocaleModelValidator : AbstractValidator<LocaleModel>
 		RuleFor(x => x.ZipCode).Matches(@"^\d{5}(-\d{4})?$").When(x => !string.IsNullOrEmpty(x.ZipCode))
 			.WithMessage("Use a 5-digit ZIP code (or ZIP+4).");
 		RuleFor(x => x.MunicipalTaxRate).InclusiveBetween(0m, 0.2m)
-			.WithMessage("Enter the city rate as a fraction, e.g. 0.02 for 2%.");
+			.WithMessage("Enter a city rate from 0% to 20%.");
 		RuleFor(x => x.SchoolDistrictName).MaximumLength(100);
 		RuleFor(x => x.SchoolDistrictNumber).MaximumLength(10);
 		RuleFor(x => x.SchoolDistrictTaxRate).InclusiveBetween(0m, 0.2m)
-			.WithMessage("Enter the school district rate as a fraction, e.g. 0.0075 for 0.75%.");
+			.WithMessage("Enter a school district rate from 0% to 20%.");
 		RuleFor(x => x.SchoolDistrictTaxBase).NotNull().When(x => x.SchoolDistrictTaxRate > 0)
 			.WithMessage("Choose whether the district taxes earned income or uses the traditional base.");
 	}

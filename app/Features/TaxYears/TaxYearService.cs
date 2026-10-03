@@ -35,6 +35,22 @@ public sealed class TaxYearService
 		return TaxYearMapper.ToParameters(entity);
 	}
 
+	public async Task<IReadOnlyList<WithholdingTablesModel>> GetWithholdingTablesAsync(int year, CancellationToken ct)
+	{
+		var parameters = TaxYearMapper.ToParameters(await LoadAsync(year, tracked: false, ct));
+
+		return parameters.Federal
+			.OrderBy(f => f.Key)
+			.Select(f => new WithholdingTablesModel(
+				f.Key,
+				Rows(FederalWithholdingTables.Standard(f.Value)),
+				Rows(FederalWithholdingTables.Step2Checkbox(f.Value))))
+			.ToList();
+
+		static IReadOnlyList<WithholdingTableRowModel> Rows(TaxSchedule table)
+			=> table.Brackets.Select(b => new WithholdingTableRowModel(b.Over, b.BaseAmount, b.Rate)).ToList();
+	}
+
 	public async Task<TaxYearModel> UpdateAsync(int year, TaxYearModel model, CancellationToken ct)
 	{
 		model.Year = year;

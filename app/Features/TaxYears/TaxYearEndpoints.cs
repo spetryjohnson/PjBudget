@@ -96,3 +96,19 @@ public sealed class DeleteTaxYearEndpoint : Endpoint<TaxYearRequest>
 		await Send.NoContentAsync(ct);
 	}
 }
+
+public sealed class GetWithholdingTablesEndpoint : Endpoint<TaxYearRequest, IReadOnlyList<WithholdingTablesModel>>
+{
+	private readonly TaxYearService _taxYears;
+
+	public GetWithholdingTablesEndpoint(TaxYearService taxYears) => _taxYears = taxYears;
+
+	public override void Configure()
+	{
+		Get("/api/tax-years/{year}/withholding-tables");
+		Policies(AuthorizationPolicies.RequireUser);
+	}
+
+	public override Task<IReadOnlyList<WithholdingTablesModel>> ExecuteAsync(TaxYearRequest req, CancellationToken ct)
+		=> _taxYears.GetWithholdingTablesAsync(req.Year, ct);
+}

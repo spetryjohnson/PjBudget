@@ -121,6 +121,20 @@ public class TaxYearServiceTests
 	}
 
 	[Test]
+	public async Task WithholdingTablesAreDerivedForEachFilingStatus()
+	{
+		var tables = await CreateService().GetWithholdingTablesAsync(2026, CancellationToken.None);
+
+		var mfj = tables.Single(t => t.FilingStatus == FilingStatus.MarriedFilingJointly);
+		Assert.Multiple(() =>
+		{
+			Assert.That(tables, Has.Count.EqualTo(3));
+			Assert.That(mfj.Standard, Does.Contain(new WithholdingTableRowModel(120_100m, 11_600m, 0.22m)));
+			Assert.That(mfj.Step2Checkbox, Does.Contain(new WithholdingTableRowModel(66_500m, 5_800m, 0.22m)));
+		});
+	}
+
+	[Test]
 	public void ParametersForAMissingYearExplainHowToCreateThem()
 	{
 		var error = Assert.ThrowsAsync<DomainValidationException>(() => CreateService().GetParametersAsync(2030, CancellationToken.None));

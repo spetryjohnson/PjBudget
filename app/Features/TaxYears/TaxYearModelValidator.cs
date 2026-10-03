@@ -81,7 +81,7 @@ public sealed class TaxYearModelValidator : AbstractValidator<TaxYearModel>
 		});
 	}
 
-	private const string RateMessage = "Rates are fractions between 0 and 1 (e.g. 0.062 for 6.2%).";
+	private const string RateMessage = "Rates must be between 0% and 100%.";
 
 	private static bool BeARate(decimal rate) => rate is >= 0 and <= 1;
 }

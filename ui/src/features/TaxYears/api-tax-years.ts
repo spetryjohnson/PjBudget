@@ -53,6 +53,19 @@ export interface TaxYear {
 	}[]
 }
 
+/** A Pub 15-T Annual Percentage Method table derived from the brackets, for checking against the published one. */
+export interface WithholdingTables {
+	filingStatus: FilingStatus
+	standard: WithholdingTableRow[]
+	step2Checkbox: WithholdingTableRow[]
+}
+
+export interface WithholdingTableRow {
+	atLeast: number
+	tentativeAmount: number
+	rate: number
+}
+
 export const taxYearsApi = {
 	list: () => apiClient.get('api/tax-years').json<TaxYearSummary[]>(),
 	get: (year: number) => apiClient.get(`api/tax-years/${year}`).json<TaxYear>(),
@@ -60,4 +73,5 @@ export const taxYearsApi = {
 	copy: (year: number, targetYear: number) =>
 		apiClient.post(`api/tax-years/${year}/copy`, { json: { targetYear } }).json<TaxYear>(),
 	remove: (year: number) => apiClient.delete(`api/tax-years/${year}`),
+	withholdingTables: (year: number) => apiClient.get(`api/tax-years/${year}/withholding-tables`).json<WithholdingTables[]>(),
 }
