@@ -1,5 +1,6 @@
 using PjBudget.Features.Authentication;
 using PjBudget.Features.Identity;
+using PjBudget.Features.Scenarios;
 using PjBudget.Shared.Database;
 using PjBudget.Shared.Database.Entities;
 using Microsoft.AspNetCore.Identity;
@@ -58,5 +59,7 @@ public static class SeedData
 				throw new InvalidOperationException("Failed to reset admin password: " +
 				                                    string.Join("; ", resetResult.Errors));
 		}
+
+		await ScenarioSeeder.EnsureCurrentScenarioAsync(db);
 	}
 }

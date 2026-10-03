@@ -5,6 +5,11 @@ namespace PjBudget.Framework {
 	public static class EnumExtensions {
 
 		/// <summary>
+		/// Separates the individual flags when a [Flags] enum value is written as string constants (e.g. "FED|STATE").
+		/// </summary>
+		public const char FlagSeparator = '|';
+
+		/// <summary>
 		/// Returns an array of attributes of the specified type applied to the given enum value.
 		/// </summary>
 		public static T[] GetAttributes<T>(this Enum @enum) where T : Attribute {
@@ -39,14 +44,13 @@ namespace PjBudget.Framework {
 
 		/// <summary>
 		/// Returns the string constant associated with the specified enum value, or the value's
-		/// .ToString() result if no string constant attribute is applied.
+		/// .ToString() result if no string constant attribute is applied. A combination of [Flags]
+		/// values is returned as the constants of its individual flags, joined by <see cref="FlagSeparator"/>.
 		/// </summary>
 		public static string ToStringConstant(this Enum @enum) {
-			var attributes = @enum.GetAttributes<StringConstantAttribute>();
+			ArgumentNullException.ThrowIfNull(@enum);
 
-			return attributes.Length > 0
-				? attributes[0].GetStringConstant()
-				: @enum.ToString();
+			return StringConstantMap.For(@enum.GetType()).ToConstant(@enum);
 		}
 	}
 }

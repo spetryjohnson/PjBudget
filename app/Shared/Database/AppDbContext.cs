@@ -1,3 +1,4 @@
+using PjBudget.Features.Scenarios;
 using PjBudget.Shared.Database.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -11,6 +12,8 @@ public class AppDbContext
 	public AppDbContext(DbContextOptions<AppDbContext> options)
 		: base(options) { }
 
+	public DbSet<Scenario> Scenarios => Set<Scenario>();
+
 	protected override void OnModelCreating(ModelBuilder b)
 	{
 		base.OnModelCreating(b);
@@ -21,5 +24,11 @@ public class AppDbContext
 				.HasMaxLength(256)
 				.IsRequired();
 		});
+
+		b.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+
+		// Conventions go last so they see every property configured above.
+		b.UseStringConstantsForEnums();
+		b.UseVersionConcurrencyTokens();
 	}
 }

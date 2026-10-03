@@ -3,10 +3,13 @@ using FastEndpoints.Swagger;
 using PjBudget.Features.Authentication;
 using PjBudget.Features.BackgroundTasks;
 using PjBudget.Features.Identity;
+using PjBudget.Features.Scenarios;
 using PjBudget.Shared.AppStartup;
 using PjBudget.Shared.Database;
+using PjBudget.Shared.Errors;
 using PjBudget.Shared.Identity;
 using PjBudget.Shared.Infrastructure;
+using PjBudget.Shared.Json;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -32,9 +35,11 @@ if (!string.IsNullOrWhiteSpace(csb.DataSource) && csb.DataSource != ":memory:" &
 {
 	csb.DataSource = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, csb.DataSource));
 }
-builder.Services.AddDbContext<AppDbContext>(opt =>
+builder.Services.AddSingleton<AuditingInterceptor>();
+builder.Services.AddDbContext<AppDbContext>((sp, opt) =>
 {
 	opt.UseSqlite(csb.ToString());
+	opt.AddInterceptors(sp.GetRequiredService<AuditingInterceptor>());
 
 	if (builder.Environment.IsDevelopment())
 	{
@@ -45,6 +50,11 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 
 // Infrastructure
 builder.Services.AddSingleton<ISystemClock, SystemClock>();
+builder.Services.AddExceptionHandler<DomainExceptionHandler>();
+builder.Services.AddProblemDetails();
+
+// Feature services
+builder.Services.AddScoped<ICurrentScenarioAccessor, CurrentScenarioAccessor>();
 
 // Background services (sample). Add additional hosted services here as the app grows.
 builder.Services.AddHostedService<SampleDailyService>();
@@ -88,6 +98,8 @@ var app = builder.Build();
 // DB migrate + seed default admin
 await SeedData.EnsureSeededAsync(app.Services);
 
+app.UseExceptionHandler();
+
 if (app.Environment.IsProduction())
 {
 	app.UseHsts();
@@ -106,7 +118,10 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseFastEndpoints();
+app.UseFastEndpoints(c =>
+{
+	c.Serializer.Options.Converters.Add(new StringConstantEnumJsonConverterFactory());
+});
 app.UseSwaggerGen();
 
 // MCP endpoints are NOT mapped here. See app/Features/Mcp/McpSetup.cs for how to enable.

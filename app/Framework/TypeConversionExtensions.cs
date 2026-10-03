@@ -34,29 +34,19 @@ namespace PjBudget.Framework {
 				: defaultVal;
 		}
 
+		/// <remarks>
+		/// For [Flags] enums the string may list several constants separated by
+		/// <see cref="EnumExtensions.FlagSeparator"/>, in any order.
+		/// </remarks>
 		private static bool TryToEnum<T>(string? s, out T result) where T : struct, Enum {
 			result = default;
 
-			if (s == null) {
+			if (s == null || !StringConstantMap.For(typeof(T)).TryParse(s, out var value)) {
 				return false;
 			}
 
-			foreach (var value in Enum.GetValues<T>()) {
-				var attributes = value.GetAttributes<StringConstantAttribute>();
-
-				if (attributes.Length > 0 && attributes[0].GetStringConstant() == s) {
-					result = value;
-					return true;
-				}
-			}
-
-			// Enum.TryParse accepts any numeric string, so make sure the result is actually defined
-			if (Enum.TryParse(s, out result) && Enum.IsDefined(result)) {
-				return true;
-			}
-
-			result = default;
-			return false;
+			result = (T)value!;
+			return true;
 		}
 	}
 }
