@@ -68,6 +68,32 @@
 								<v-select v-model="household.taxFilingStatus" :items="filingStatuses" label="Tax return filing status" />
 							</v-col>
 						</v-row>
+
+						<div class="subhead">Tax return inputs</div>
+						<p class="hint">Annual amounts the projection can't get from paychecks. Leave them at 0 if they don't apply.</p>
+						<v-row dense>
+							<v-col cols="6" sm="3">
+								<NumberField v-model="household.federalOtherIncome" label="Other income" prefix="$" hint="Interest, dividends…" :error-messages="fieldErrors.federalOtherIncome" />
+							</v-col>
+							<v-col cols="6" sm="3">
+								<NumberField v-model="household.federalAdjustments" label="Adjustments" prefix="$" hint="Above-the-line" :error-messages="fieldErrors.federalAdjustments" />
+							</v-col>
+							<v-col cols="6" sm="3">
+								<NumberField v-model="household.federalItemizedDeductions" label="Itemized deductions" prefix="$" nullable hint="Blank = standard" :error-messages="fieldErrors.federalItemizedDeductions" />
+							</v-col>
+							<v-col cols="6" sm="3">
+								<NumberField v-model="household.federalCredits" label="Federal credits" prefix="$" hint="e.g. child tax credit" :error-messages="fieldErrors.federalCredits" />
+							</v-col>
+							<v-col cols="6" sm="4">
+								<NumberField v-model="household.ohioAdjustments" label="Ohio adjustments" prefix="$" hint="− for deductions, e.g. 529s" :error-messages="fieldErrors.ohioAdjustments" />
+							</v-col>
+							<v-col cols="6" sm="4">
+								<NumberField v-model="household.ohioExemptionCount" label="Ohio exemptions" step="1" hint="You, spouse, dependents" :error-messages="fieldErrors.ohioExemptionCount" />
+							</v-col>
+							<v-col cols="6" sm="4">
+								<NumberField v-model="household.ohioOtherCredits" label="Other Ohio credits" prefix="$" :error-messages="fieldErrors.ohioOtherCredits" />
+							</v-col>
+						</v-row>
 					</v-card-text>
 					<v-card-actions>
 						<span v-if="saved" class="hint ml-2 mb-0">Saved</span>
@@ -78,12 +104,15 @@
 			</v-col>
 		</v-row>
 
+		<TaxProjectionCard v-if="household" ref="projectionCard" v-model:year="year" :years="yearChoices" class="mt-4" />
+
 		<PersonDialog v-model="personDialogOpen" :person="editingPerson" @saved="store.refreshPeople()" />
 	</div>
 </template>
 
 <script setup lang="ts">
 	import { computed, onMounted, ref, watch } from 'vue'
+	import NumberField from '../../components/NumberField.vue'
 	import { toApiError } from '../../lib/apiErrors'
 	import { longDate, parseDate } from '../../lib/format'
 	import { filingStatuses, hsaCoverages } from '../../lib/types-domain'
@@ -91,6 +120,7 @@
 	import { newPerson, peopleApi, type Person } from '../People/api-people'
 	import PersonDialog from '../People/PersonDialog.vue'
 	import { householdApi, type Household } from './api-household'
+	import TaxProjectionCard from './TaxProjectionCard.vue'
 
 	const store = useReferenceDataStore()
 	const household = ref<Household | null>(null)
@@ -102,6 +132,9 @@
 	const personDialogOpen = ref(false)
 	const editingPerson = ref<Person | null>(null)
 	const year = ref(new Date().getFullYear())
+	const projectionCard = ref<InstanceType<typeof TaxProjectionCard> | null>(null)
+
+	const yearChoices = computed(() => (store.years.length ? store.years : [year.value]))
 
 	const householdDirty = computed(() => household.value != null && JSON.stringify(household.value) !== savedHousehold.value)
 
@@ -151,6 +184,7 @@
 			setHousehold(await householdApi.update(household.value))
 			fieldErrors.value = {}
 			saved.value = true
+			await projectionCard.value?.reload()
 		} catch (e) {
 			const apiError = await toApiError(e)
 			fieldErrors.value = apiError.fieldErrors
@@ -160,3 +194,11 @@
 		}
 	}
 </script>
+
+<style scoped>
+	.subhead {
+		font-weight: 600;
+		font-size: 0.875rem;
+		margin: 1rem 0 0.25rem;
+	}
+</style>

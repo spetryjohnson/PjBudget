@@ -69,12 +69,14 @@ builder.Services.AddScoped<HouseholdService>();
 builder.Services.AddScoped<PayrollSourceValidator>();
 builder.Services.AddScoped<PayrollSourceService>();
 builder.Services.AddScoped<PayrollSimulationService>();
+builder.Services.AddScoped<HouseholdTaxProjectionService>();
 
 // Payroll engine (stateless). Register additional states' tax modules here.
 builder.Services.AddSingleton<IStateTaxModule, OhioTaxModule>();
 builder.Services.AddSingleton<StateTaxModules>();
 builder.Services.AddSingleton<PayScheduleGenerator>();
 builder.Services.AddSingleton<PaycheckSimulator>();
+builder.Services.AddSingleton<HouseholdTaxProjector>();
 
 // Background services (sample). Add additional hosted services here as the app grows.
 builder.Services.AddHostedService<SampleDailyService>();

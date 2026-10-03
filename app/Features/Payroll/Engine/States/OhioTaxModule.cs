@@ -26,6 +26,99 @@ public sealed class OhioTaxModule : IStateTaxModule
 		return new StateAndLocalWithholding(state, city, SchoolDistrict(context, wages, annualTaxableWages));
 	}
 
+	public IReadOnlyList<TaxProjectionSection> ProjectAnnualTaxes(StateProjectionContext context)
+	{
+		var ohio = context.TaxYear.Ohio;
+		var inputs = context.Inputs;
+
+		var ohioAgi = context.FederalAdjustedGrossIncome + inputs.StateAdjustments;
+
+		// Ohio's MAGI adds back the business income deduction, which wage earners don't take, so Ohio AGI stands in.
+		var magi = ohioAgi;
+		var exemptionEach = magi < ohio.ExemptionMagiLimit ? ohio.ExemptionTiers.FindBracket(magi).BaseAmount : 0m;
+		var exemptions = exemptionEach * inputs.StateExemptionCount;
+		var taxableIncome = Math.Max(0m, ohioAgi - exemptions);
+
+		var tax = Money.Round(ohio.IncomeTax.Calculate(taxableIncome));
+		var jointFilingCredit = JointFilingCredit(context, magi, taxableIncome, tax);
+		var otherCredits = Math.Min(inputs.StateCredits, tax - jointFilingCredit);
+
+		var sections = new List<TaxProjectionSection>
+		{
+			new("Ohio",
+			[
+				new TaxProjectionLine("Ohio adjusted gross income", ohioAgi),
+				new TaxProjectionLine($"Exemptions ({inputs.StateExemptionCount})", -exemptions),
+				new TaxProjectionLine("Ohio taxable income", taxableIncome),
+				new TaxProjectionLine("Income tax", tax),
+				new TaxProjectionLine("Joint filing credit", -jointFilingCredit),
+				new TaxProjectionLine("Other credits", -otherCredits),
+			],
+			tax - jointFilingCredit - otherCredits,
+			context.Sources.Sum(s => s.Annual.StateIncomeTax)),
+		};
+
+		if (SchoolDistrictProjection(context, taxableIncome) is { } school)
+		{
+			sections.Add(school);
+		}
+
+		var cityWithheld = context.Sources.Sum(s => s.Annual.CityIncomeTax);
+		if (cityWithheld > 0)
+		{
+			var homeRate = context.Home?.MunicipalTaxRate;
+			var note = homeRate is null || context.Sources.All(s => s.Work.MunicipalTaxRate >= homeRate)
+				? "Assumes withholding for your work cities settles city tax in full."
+				: "Your home city may also tax wages earned in a lower-rate city; that isn't projected.";
+
+			sections.Add(new TaxProjectionSection("City",
+				[new TaxProjectionLine("Withheld for work cities", cityWithheld)], cityWithheld, cityWithheld, note));
+		}
+
+		return sections;
+	}
+
+	/// <summary>
+	/// Ohio's credit for married couples who both earn income. It's a percentage of the tax, set by income tier and
+	/// capped.
+	/// </summary>
+	private static decimal JointFilingCredit(StateProjectionContext context, decimal magi, decimal taxableIncome, decimal tax)
+	{
+		var ohio = context.TaxYear.Ohio;
+		if (context.Inputs.FilingStatus != FilingStatus.MarriedFilingJointly || magi >= ohio.JointFilingCreditMagiLimit)
+		{
+			return 0m;
+		}
+
+		var earningSpouses = context.Sources
+			.GroupBy(s => s.PersonId)
+			.Count(g => g.Sum(s => s.Annual.TaxableWages.State) >= ohio.JointFilingCreditMinSpouseIncome);
+		if (earningSpouses < 2)
+		{
+			return 0m;
+		}
+
+		var rate = ohio.JointFilingCreditTiers.FindBracket(taxableIncome).Rate;
+		return Math.Min(Money.Round(tax * rate), ohio.JointFilingCreditCap);
+	}
+
+	private static TaxProjectionSection? SchoolDistrictProjection(StateProjectionContext context, decimal ohioTaxableIncome)
+	{
+		if (context.Home?.SchoolDistrictTaxRate is not { } rate || rate == 0m)
+		{
+			return null;
+		}
+
+		var traditional = context.Home.SchoolDistrictTaxBase == SchoolDistrictTaxBase.Traditional;
+		var taxBase = traditional ? ohioTaxableIncome : context.Sources.Sum(s => s.Annual.TaxableWages.School);
+
+		return new TaxProjectionSection("School district",
+			[new TaxProjectionLine(traditional ? "Ohio taxable income" : "Earned income", taxBase)],
+			Money.Round(taxBase * rate),
+			context.Sources.Sum(s => s.Annual.SchoolDistrictTax),
+			$"Taxed at {rate * 100:0.###}%.");
+	}
+
 	private static decimal SchoolDistrict(StateWithholdingContext context, TaxableWages wages, decimal annualTaxableStateWages)
 	{
 		if (context.Home?.SchoolDistrictTaxRate is not { } rate || rate == 0m)

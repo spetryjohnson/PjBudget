@@ -11,7 +11,19 @@ public interface IStateTaxModule
 	string StateCode { get; }
 
 	StateAndLocalWithholding CalculateWithholding(StateWithholdingContext context, TaxableWages wages);
+
+	/// <summary>
+	/// The household's annual state and local liability compared with withholding, one section per tax.
+	/// </summary>
+	IReadOnlyList<TaxProjectionSection> ProjectAnnualTaxes(StateProjectionContext context);
 }
+
+public sealed record StateProjectionContext(
+	TaxYearParameters TaxYear,
+	HouseholdTaxInputs Inputs,
+	HomeLocation? Home,
+	decimal FederalAdjustedGrossIncome,
+	IReadOnlyList<SourceYear> Sources);
 
 public sealed record StateWithholdingContext(
 	int PeriodsPerYear,

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using PjBudget.Features.Household;
+using PjBudget.Features.Locales;
 using PjBudget.Features.Payroll.Engine;
 using PjBudget.Features.TaxYears;
 using PjBudget.Shared.Database;
@@ -82,11 +83,8 @@ public sealed class PayrollSimulationService
 	{
 		var taxYear = await _taxYears.GetParametersAsync(year, ct);
 		var household = await HouseholdSeeder.EnsureProfileAsync(_db, scenarioId, ct);
-		var home = household.HomeLocale is { } locale
-			? new HomeLocation(locale.StateCode, locale.MunicipalTaxRate, locale.SchoolDistrictTaxRate, locale.SchoolDistrictTaxBase)
-			: null;
 
-		return new SimulationContext(year, taxYear, household.HsaCoverage, home);
+		return new SimulationContext(year, taxYear, household.HsaCoverage, household.HomeLocale?.ToHomeLocation());
 	}
 
 	private async Task<PayrollSimulation> SimulateAsync(PayrollSourceModel model, SimulationContext context, CancellationToken ct)
@@ -99,7 +97,7 @@ public sealed class PayrollSimulationService
 			PayrollSourceMapper.ToEngineInput(model),
 			birthDate,
 			context.HsaCoverage,
-			new WorkLocation(work.StateCode, work.MunicipalTaxRate),
+			work.ToWorkLocation(),
 			context.Home,
 			context.TaxYear));
 	}
