@@ -196,7 +196,7 @@ public class PayrollSourceServiceTests
 			Assert.That(summary.PersonName, Is.EqualTo("Pat"));
 			Assert.That(summary.Headline!.CheckCount, Is.EqualTo(24));
 			Assert.That(summary.Headline.AnnualGrossPay, Is.EqualTo(120_000m));
-			Assert.That(summary.Headline.RegularNetPay, Is.EqualTo(3_323.47m));
+			Assert.That(summary.Headline.RegularNetPay, Is.EqualTo(3_323.46m));
 			Assert.That(summary.SimulationError, Is.Null);
 		});
 	}

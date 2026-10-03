@@ -26,22 +26,22 @@ public class OhioTaxModuleTests
 	[Test]
 	public void TopBracket()
 	{
-		// 5,000 × 24 = 120,000 → 2,627.91 + 3.4% × 20,000 = 3,307.91 ÷ 24 = 137.8296, and the fraction of a cent is dropped
-		Assert.That(Withhold(5_000m).State, Is.EqualTo(137.82m));
+		// 5,000 × 24 = 120,000 → 2,627.91 + 3.4% × 20,000 = 3,307.91 ÷ 24 = 137.8296, rounded to 137.83 (as ADP does)
+		Assert.That(Withhold(5_000m).State, Is.EqualTo(137.83m));
 	}
 
 	[Test]
 	public void ExemptionsReduceAnnualWagesBy650Each()
 	{
-		// 120,000 − 1,300 = 118,700 → 2,627.91 + 3.4% × 18,700 = 3,263.71 ÷ 24 = 135.9879 → 135.98
-		Assert.That(Withhold(5_000m, exemptions: 2).State, Is.EqualTo(135.98m));
+		// 120,000 − 1,300 = 118,700 → 2,627.91 + 3.4% × 18,700 = 3,263.71 ÷ 24 = 135.99
+		Assert.That(Withhold(5_000m, exemptions: 2).State, Is.EqualTo(135.99m));
 	}
 
 	[Test]
 	public void MiddleBracketBiweeklyWithAdditionalWithholding()
 	{
-		// 2,000 × 26 − 650 = 51,350 → 416.80 + 2.99% × 25,300 = 1,173.27 ÷ 26 = 45.1258 → 45.12, plus 10 extra
-		Assert.That(Withhold(2_000m, periods: 26, exemptions: 1, additional: 10m).State, Is.EqualTo(55.12m));
+		// 2,000 × 26 − 650 = 51,350 → 416.80 + 2.99% × 25,300 = 1,173.27 ÷ 26 = 45.13, plus 10 extra
+		Assert.That(Withhold(2_000m, periods: 26, exemptions: 1, additional: 10m).State, Is.EqualTo(55.13m));
 	}
 
 	[Test]

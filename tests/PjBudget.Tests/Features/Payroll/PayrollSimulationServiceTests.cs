@@ -46,7 +46,7 @@ public class PayrollSimulationServiceTests
 		var simulated = await TestServices.Simulations(_database.CreateContext())
 			.SimulateSavedAsync(baseline.ScenarioId, saved.Id, 2026, CancellationToken.None);
 
-		Assert.That(preview.Summary.AnnualTotals.NetPay, Is.EqualTo(simulated.Summary.AnnualTotals.NetPay).And.EqualTo(79_763.40m));
+		Assert.That(preview.Summary.AnnualTotals.NetPay, Is.EqualTo(simulated.Summary.AnnualTotals.NetPay).And.EqualTo(79_763.16m));
 	}
 
 	[Test]

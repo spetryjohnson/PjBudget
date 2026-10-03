@@ -32,9 +32,7 @@ Simulate every paycheck in a calendar year for each payroll source, so that the 
 
 ## 3. Payroll rules (engine specification)
 
-Money is rounded to cents per line per check, with midpoints rounded away from zero (the same as Excel's ROUND). There are two exceptions, both matching how ADP calculates real paychecks:
-- Social Security and Medicare are rounded on year-to-date totals (§3.6).
-- Ohio withholding drops fractions of a cent (§3.7).
+Money is rounded to cents per line per check, with midpoints rounded away from zero (the same as Excel's ROUND). The exception is Social Security and Medicare, which are rounded on year-to-date totals the way ADP calculates them (§3.6).
 
 ### 3.1 Pay schedule
 - **Semimonthly:** two paydays per month (`PayDay1` and `PayDay2`, defaulting to the 10th and 25th). A day past the end of the month moves to the last day of the month. That gives 24 checks a year, and annualization uses 24 periods.
@@ -100,7 +98,7 @@ Each tax is figured on year-to-date wages and rounded once. A check withholds wh
 | $26,050 < TW ≤ $100,000 | $416.80 + 2.99% × (TW − 26,050) |
 | > $100,000 | $2,627.91 + 3.4% × (TW − 100,000) |
 
-Withholding per check = `truncate(annual ÷ periods)` + IT 4 additional withholding. The brackets are tax-year data, not code. ADP drops the fraction of a cent rather than rounding it, so a formula result of $137.8296 is withheld as $137.82.
+Withholding per check = `round(annual ÷ periods)` + IT 4 additional withholding. The brackets are tax-year data, not code. ADP paystubs under this formula confirm the rounding.
 
 ### 3.8 City and school district (Ohio)
 - **City** (from the work locale): `round(city rate × city wages)`.
@@ -325,7 +323,7 @@ Work happens on a feature branch, with one commit per milestone (subject to your
 - **Mid-year rule changes are not effective-dated.** A year's simulation applies that year's current parameters to every check. For example, Ohio's August 1, 2026 formula is applied to all 2026 checks, even though checks before then used the formula effective October 1, 2025. This is deliberate: the app forecasts upcoming pay, so when a rule changes mid-year, the tax year is edited. Earlier checks in that year are then recalculated with the new rule and may no longer match their paystubs. Verify against paystubs issued after the latest change.
 - **The resident-city credit** (when the work city differs from the home city) is not modeled.
 - **27-check years:** deductions are taken from every check at the annual amount ÷ 26, and the FSA is capped at the election.
-- **Payroll provider rounding** follows ADP: year-to-date FICA, and truncated Ohio withholding. Other providers may differ by a few cents, and the net adjustment absorbs any remaining difference. The target is within $1 of each real check.
+- **Payroll provider rounding** follows ADP, including year-to-date FICA. Other providers may differ by a few cents, and the net adjustment absorbs any remaining difference. The target is within $1 of each real check.
 - **Federal credits** in the projection are treated as nonrefundable, which is a simplification.
 
 ## 10. References

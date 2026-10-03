@@ -16,10 +16,9 @@ public sealed class OhioTaxModule : IStateTaxModule
 		var periods = context.PeriodsPerYear;
 
 		// The formula works on annual wages after IT 4 exemptions, and the result is spread back over the year's checks.
-		// ADP drops the fraction of a cent rather than rounding it, so a check can be a penny under the rounded result.
 		var annualTaxableWages = Math.Max(0m,
 			wages.State * periods - ohio.WithholdingExemptionAmount * context.Elections.Exemptions);
-		var state = Money.Truncate(ohio.Withholding.Calculate(annualTaxableWages) / periods)
+		var state = Money.Round(ohio.Withholding.Calculate(annualTaxableWages) / periods)
 		            + context.Elections.AdditionalWithholding;
 
 		var city = Money.Round(wages.City * context.Work.MunicipalTaxRate);

@@ -45,13 +45,13 @@ public class PaycheckSimulatorTests
 			Assert.That(lines.FederalIncomeTax, Is.EqualTo(328.33m));
 			Assert.That(lines.SocialSecurityTax, Is.EqualTo(294.50m));
 			Assert.That(lines.MedicareTax, Is.EqualTo(68.88m));
-			Assert.That(lines.StateIncomeTax, Is.EqualTo(112.32m));
+			Assert.That(lines.StateIncomeTax, Is.EqualTo(112.33m));
 			Assert.That(lines.CityIncomeTax, Is.EqualTo(95.00m));
 			Assert.That(lines.SchoolDistrictTax, Is.EqualTo(42.50m));
 			Assert.That(lines.NonTaxableStipend, Is.EqualTo(25m));
 
-			// 5,000 − 941.53 taxes − 760 deductions + 25 stipend
-			Assert.That(lines.NetPay, Is.EqualTo(3_323.47m));
+			// 5,000 − 941.54 taxes − 760 deductions + 25 stipend
+			Assert.That(lines.NetPay, Is.EqualTo(3_323.46m));
 		});
 	}
 
@@ -69,8 +69,8 @@ public class PaycheckSimulatorTests
 			// on the rate. The year withholds 1,653.00 instead of 24 × 68.88, which leaves 12 cents more net pay.
 			Assert.That(simulation.Checks.Select(c => c.Current.MedicareTax).Take(4), Is.EqualTo(new[] { 68.88m, 68.87m, 68.88m, 68.87m }));
 			Assert.That(summary.AnnualTotals.MedicareTax, Is.EqualTo(1_653.00m));
-			Assert.That(summary.AnnualTotals.NetPay, Is.EqualTo(79_763.40m));
-			Assert.That(summary.RegularNetPay, Is.EqualTo(3_323.47m));
+			Assert.That(summary.AnnualTotals.NetPay, Is.EqualTo(79_763.16m));
+			Assert.That(summary.RegularNetPay, Is.EqualTo(3_323.46m));
 			Assert.That(summary.FinalSocialSecurityCheck, Is.EqualTo(24));
 			Assert.That(summary.ChecksWithoutSocialSecurity, Is.EqualTo(0));
 			Assert.That(summary.AdditionalMedicareStartsOnCheck, Is.Null);
@@ -206,7 +206,7 @@ public class PaycheckSimulatorTests
 
 		var comparison = _simulator.Simulate(Request(source)).Summary.ActualComparison;
 
-		Assert.That(comparison, Is.EqualTo(new ActualPaycheckComparison(new DateOnly(2026, 3, 10), 5, 3_330m, 3_323.47m, 6.53m)));
+		Assert.That(comparison, Is.EqualTo(new ActualPaycheckComparison(new DateOnly(2026, 3, 10), 5, 3_330m, 3_323.46m, 6.54m)));
 	}
 
 	[Test]
@@ -235,7 +235,7 @@ public class PaycheckSimulatorTests
 			// 3% of 5,000 + 50% of the 300 (6% of pay) of the 500 deferred
 			Assert.That(lines.EmployerRetirement, Is.EqualTo(300m));
 			Assert.That(lines.EmployerHsa, Is.EqualTo(20m));
-			Assert.That(lines.NetPay, Is.EqualTo(3_323.47m));
+			Assert.That(lines.NetPay, Is.EqualTo(3_323.46m));
 		});
 	}
 
