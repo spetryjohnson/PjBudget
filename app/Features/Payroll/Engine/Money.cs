@@ -8,5 +8,8 @@ public static class Money
 	/// </summary>
 	public static decimal Round(decimal amount) => Math.Round(amount, 2, MidpointRounding.AwayFromZero);
 
+	/// <summary>Cuts an amount to whole cents, dropping any fraction of a cent instead of rounding it.</summary>
+	public static decimal Truncate(decimal amount) => Math.Truncate(amount * 100m) / 100m;
+
 	public static decimal RoundToDollar(decimal amount) => Math.Round(amount, 0, MidpointRounding.AwayFromZero);
 }

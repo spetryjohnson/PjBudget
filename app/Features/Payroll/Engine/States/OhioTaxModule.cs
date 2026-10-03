@@ -16,9 +16,10 @@ public sealed class OhioTaxModule : IStateTaxModule
 		var periods = context.PeriodsPerYear;
 
 		// The formula works on annual wages after IT 4 exemptions, and the result is spread back over the year's checks.
+		// ADP drops the fraction of a cent rather than rounding it, so a check can be a penny under the rounded result.
 		var annualTaxableWages = Math.Max(0m,
 			wages.State * periods - ohio.WithholdingExemptionAmount * context.Elections.Exemptions);
-		var state = Money.Round(ohio.Withholding.Calculate(annualTaxableWages) / periods)
+		var state = Money.Truncate(ohio.Withholding.Calculate(annualTaxableWages) / periods)
 		            + context.Elections.AdditionalWithholding;
 
 		var city = Money.Round(wages.City * context.Work.MunicipalTaxRate);
@@ -110,13 +111,19 @@ public sealed class OhioTaxModule : IStateTaxModule
 		}
 
 		var traditional = context.Home.SchoolDistrictTaxBase == SchoolDistrictTaxBase.Traditional;
-		var taxBase = traditional ? ohioTaxableIncome : context.Sources.Sum(s => s.Annual.TaxableWages.School);
+		var taxBase = traditional ? ohioTaxableIncome : context.Sources.Sum(s => s.ReturnWages(TaxableWageTypes.School));
+
+		var note = $"Taxed at {rate * 100:0.###}%.";
+		if (context.Sources.Any(s => s.Annual.SchoolDistrictTaxNotWithheld > 0))
+		{
+			note += " Not every employer withholds it, so pay the rest with the return or with SD 100ES estimated payments.";
+		}
 
 		return new TaxProjectionSection("School district",
 			[new TaxProjectionLine(traditional ? "Ohio taxable income" : "Earned income", taxBase)],
 			Money.Round(taxBase * rate),
 			context.Sources.Sum(s => s.Annual.SchoolDistrictTax),
-			$"Taxed at {rate * 100:0.###}%.");
+			note);
 	}
 
 	private static decimal SchoolDistrict(StateWithholdingContext context, TaxableWages wages, decimal annualTaxableStateWages)

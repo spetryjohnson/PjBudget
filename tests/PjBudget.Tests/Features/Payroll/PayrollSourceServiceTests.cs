@@ -45,6 +45,25 @@ public class PayrollSourceServiceTests
 	}
 
 	[Test]
+	public async Task LifeInsuranceAndSchoolWithholdingSettingsAreStored()
+	{
+		var model = TestServices.SalariedSource(_baseline);
+		model.GroupTermLifePerCheck = 4.20m;
+		model.GroupTermLifeTaxedFor = TaxableWageTypes.SocialSecurity | TaxableWageTypes.Medicare;
+		model.WithholdsSchoolDistrictTax = false;
+
+		var created = await CreateAsync(model);
+		var loaded = await Service().GetAsync(_baseline.ScenarioId, created.Id, CancellationToken.None);
+
+		Assert.Multiple(() =>
+		{
+			Assert.That(loaded.GroupTermLifePerCheck, Is.EqualTo(4.20m));
+			Assert.That(loaded.GroupTermLifeTaxedFor, Is.EqualTo(TaxableWageTypes.SocialSecurity | TaxableWageTypes.Medicare));
+			Assert.That(loaded.WithholdsSchoolDistrictTax, Is.False);
+		});
+	}
+
+	[Test]
 	public async Task SettingsThatDontApplyToThePayBasisOrFrequencyArentStored()
 	{
 		var model = TestServices.SalariedSource(_baseline);
@@ -102,9 +121,11 @@ public class PayrollSourceServiceTests
 		var model = TestServices.SalariedSource(_baseline);
 		model.SemimonthlyPayDay2 = 5;
 		model.Traditional401kPercent = 120m;
+		model.GroupTermLifePerCheck = -1m;
 
 		var fieldErrors = Assert.ThrowsAsync<DomainValidationException>(() => CreateAsync(model));
-		Assert.That(fieldErrors!.Errors.Keys, Is.EquivalentTo(new[] { "semimonthlyPayDay2", "traditional401kPercent" }));
+		Assert.That(fieldErrors!.Errors.Keys,
+			Is.EquivalentTo(new[] { "semimonthlyPayDay2", "traditional401kPercent", "groupTermLifePerCheck" }));
 
 		model = TestServices.SalariedSource(_baseline);
 		model.PersonId = 999;
@@ -175,7 +196,7 @@ public class PayrollSourceServiceTests
 			Assert.That(summary.PersonName, Is.EqualTo("Pat"));
 			Assert.That(summary.Headline!.CheckCount, Is.EqualTo(24));
 			Assert.That(summary.Headline.AnnualGrossPay, Is.EqualTo(120_000m));
-			Assert.That(summary.Headline.RegularNetPay, Is.EqualTo(3_323.46m));
+			Assert.That(summary.Headline.RegularNetPay, Is.EqualTo(3_323.47m));
 			Assert.That(summary.SimulationError, Is.Null);
 		});
 	}

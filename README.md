@@ -12,12 +12,14 @@ the design and the payroll rules the engine follows.
 - **Paycheck simulation:** every check in a calendar year, for 1–4 payroll sources (salaried or hourly, paid twice a
   month or every two weeks).
 - **Federal withholding:** IRS Pub 15-T Worksheet 1A, using all fields of the 2020+ W-4.
-- **FICA:** Social Security up to the wage base, Medicare, and Additional Medicare above $200k.
-- **Ohio:** state withholding with the optional computer formula, city tax, and school district tax.
+- **FICA:** Social Security up to the wage base, Medicare, and Additional Medicare above $200k, rounded on
+  year-to-date totals the way ADP does.
+- **Ohio:** state withholding with the optional computer formula, city tax, and school district tax. Each job can
+  turn off school district withholding, and the tax is still projected.
 - **Year-to-date limits:** the 401(k) limit (including catch-up contributions by age), HSA and FSA limits, and the
   Social Security wage base.
-- **Deductions:** insurance and other deductions with per-wage-base pre-tax settings, a stipend, and employer
-  contributions.
+- **Deductions:** insurance and other deductions with per-wage-base pre-tax settings, a stipend, taxable group-term
+  life insurance, and employer contributions.
 - **Calibration:** compare against a real paycheck and absorb any remaining difference, so simulated net pay matches
   actual pay exactly.
 - **Household tax projection:** federal, Ohio, school district and city tax owed, compared with withholding.

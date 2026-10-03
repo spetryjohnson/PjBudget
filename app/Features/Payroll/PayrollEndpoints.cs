@@ -189,5 +189,6 @@ public sealed class PayrollReferenceEndpoint : EndpointWithoutRequest<PayrollRef
 			Enum.GetValues<DeductionType>().ToDictionary(t => t.ToStringConstant(), DefaultTaxTreatment.ForDeduction),
 			DefaultTaxTreatment.Traditional401k,
 			DefaultTaxTreatment.CafeteriaPlan,
+			DefaultTaxTreatment.GroupTermLife,
 			PayrollSourceService.MaxSourcesPerScenario));
 }

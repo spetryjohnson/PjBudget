@@ -33,6 +33,11 @@
 						<div class="stat-value">{{ wholeMoney(summary!.annualTotals.totalTaxes) }}</div>
 						<div class="stat-note">{{ taxShare }} of gross</div>
 					</div>
+					<div v-if="summary!.annualTotals.schoolDistrictTaxNotWithheld > 0" class="stat">
+						<div class="stat-label">School tax not withheld</div>
+						<div class="stat-value">{{ wholeMoney(summary!.annualTotals.schoolDistrictTaxNotWithheld) }}</div>
+						<div class="stat-note">Still owed</div>
+					</div>
 					<div class="stat">
 						<div class="stat-label">Checks</div>
 						<div class="stat-value">{{ summary!.checkCount }}</div>

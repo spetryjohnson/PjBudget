@@ -123,11 +123,15 @@ public sealed class PaycheckSimulator
 				(fsa, _source.HealthFsaPreTaxFor),
 			};
 			preTax.AddRange(deductions.Select((amount, i) => (amount, _source.Deductions[i].PreTaxFor)));
-			var wages = TaxableWagesAfter(gross, preTax);
+			var groupTermLife = _source.GroupTermLifePerCheck;
+			var wages = TaxableWagesAfter(gross, preTax, groupTermLife, _source.GroupTermLifeTaxedFor);
 
 			var fica = FicaCalculator.Calculate(wages.SocialSecurity, wages.Medicare,
-				new FicaYearToDate(ytd.SocialSecurityTaxedWages, ytd.SocialSecurityTax, ytd.TaxableWages.Medicare), _fica);
+				new FicaYearToDate(ytd.SocialSecurityTaxedWages, ytd.SocialSecurityTax, ytd.TaxableWages.Medicare,
+					ytd.MedicareTax, ytd.AdditionalMedicareTax),
+				_fica);
 			var stateAndLocal = _state.CalculateWithholding(_stateContext, wages);
+			var schoolDistrictTax = _source.WithholdsSchoolDistrictTax ? stateAndLocal.SchoolDistrict : 0m;
 
 			var lines = new PaycheckLines
 			{
@@ -146,9 +150,11 @@ public sealed class PaycheckSimulator
 				AdditionalMedicareTax = fica.AdditionalMedicare,
 				StateIncomeTax = stateAndLocal.State,
 				CityIncomeTax = stateAndLocal.City,
-				SchoolDistrictTax = stateAndLocal.SchoolDistrict,
+				SchoolDistrictTax = schoolDistrictTax,
+				SchoolDistrictTaxNotWithheld = stateAndLocal.SchoolDistrict - schoolDistrictTax,
 				NonTaxableStipend = _source.StipendIsTaxable ? 0m : _source.StipendPerCheck,
 				NetPayAdjustment = _source.NetPayAdjustmentPerCheck,
+				GroupTermLife = groupTermLife,
 				EmployerRetirement = EmployerRetirement(deferral),
 				EmployerHsa = employerHsa,
 			};
@@ -170,10 +176,16 @@ public sealed class PaycheckSimulator
 
 		private static decimal Capped(decimal amount, decimal remaining) => Math.Max(0m, Math.Min(amount, remaining));
 
-		private static TaxableWages TaxableWagesAfter(decimal gross, IReadOnlyList<(decimal Amount, TaxableWageTypes PreTaxFor)> deductions)
+		/// <param name="groupTermLife">Taxable life insurance. It isn't paid, but it's added to the wages it's taxed for.</param>
+		private static TaxableWages TaxableWagesAfter(
+			decimal gross,
+			IReadOnlyList<(decimal Amount, TaxableWageTypes PreTaxFor)> deductions,
+			decimal groupTermLife,
+			TaxableWageTypes groupTermLifeTaxedFor)
 		{
 			decimal WagesFor(TaxableWageTypes type)
-				=> Math.Max(0m, gross - deductions.Where(d => d.PreTaxFor.HasFlag(type)).Sum(d => d.Amount));
+				=> Math.Max(0m, gross - deductions.Where(d => d.PreTaxFor.HasFlag(type)).Sum(d => d.Amount))
+				   + (groupTermLifeTaxedFor.HasFlag(type) ? groupTermLife : 0m);
 
 			return new TaxableWages(
 				WagesFor(TaxableWageTypes.Federal),

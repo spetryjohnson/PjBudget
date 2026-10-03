@@ -19,7 +19,7 @@
 				v-for="check in simulation.checks"
 				:key="check.number"
 				class="clickable-row"
-				:class="{ irregular: check.current.netPay !== simulation.summary.regularNetPay }"
+				:class="{ irregular: isIrregular(check) }"
 				:title="`Check ${check.number}: click for the full paystub`"
 				@click="emit('select', check)"
 			>
@@ -64,6 +64,10 @@
 	const fica = (l: PaycheckLines) => l.socialSecurityTax + l.medicareTax + l.additionalMedicareTax
 	const local = (l: PaycheckLines) => l.cityIncomeTax + l.schoolDistrictTax
 	const other = (l: PaycheckLines) => l.hsaEmployee + l.healthFsa + l.deductions.reduce((sum, d) => sum + d, 0)
+
+	// Social Security and Medicare are rounded on year-to-date totals, so otherwise identical checks can differ by a
+	// cent or two. That isn't worth highlighting.
+	const isIrregular = (check: Paycheck) => Math.abs(check.current.netPay - props.simulation.summary.regularNetPay) > 0.05
 </script>
 
 <style scoped>

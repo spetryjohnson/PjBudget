@@ -17,7 +17,8 @@ Simulate every paycheck in a calendar year for each payroll source, so that the 
 | 401k | Traditional only. The employer contribution is a flat non-elective %, with an optional single-tier match. The limit works the way payroll does: take the % from each check until the annual limit is reached, then stop. |
 | Catch-up | Included. Eligibility comes from `Person.BirthDate` using the age reached by Dec 31: 50+ adds $8,000 to the 401k limit, 60–63 adds $11,250 instead (2026 amounts), and 55+ adds $1,000 to the HSA limit. |
 | Federal W-4 | All 2020+ fields: filing status (Single / MFJ / HoH), the Step 2 checkbox, Step 3 credits, and Steps 4(a), 4(b) and 4(c). |
-| Ohio IT 4 | Exemptions, plus additional withholding per check. |
+| Ohio IT 4 | Exemptions, plus additional withholding per check. Each job can also turn off school district withholding, because some employers leave that tax to be paid separately. The tax is still calculated and projected. |
+| Group-term life | The taxable value of employer-paid life insurance (the paystub's "GTL" line) is entered per check. It isn't paid, but it raises taxable wages. |
 | Amount bases | Insurance and FSA are annual elections, deducted per check. HSA and stipend are entered per check. The stipend has a "taxable" toggle. |
 | Deductions | A list of typed deductions (Medical, Dental, Vision, Life, Disability, Legal, Other). Each has pre-tax flags per wage type. There is no dependent-care FSA. |
 | Calibration | Per-check overrides for deductions other than taxes, a net-pay adjustment, and an "actual paycheck" comparison. Taxes are never overridden, because they must respond to what-if changes. |
@@ -27,11 +28,13 @@ Simulate every paycheck in a calendar year for each payroll source, so that the 
 | Data | Only public tax data is seeded. Personal data is entered through the UI, and the SQLite database stays out of git. |
 | Enums | Enums are stored as string constants everywhere, with flags stored as `A\|B` lists. The API serializes them the same way. |
 | Concurrency | A `Version` GUID on each aggregate root blocks stale updates (HTTP 409). There is no live sync between users. |
-| Out of scope | Frontend tests, user management, states other than Ohio (but keep the extension point), pre-2020 W-4s, imputed income, bonuses and supplemental wages, effective-dated mid-year changes (a raise means editing the plan), and SSE plumbing. |
+| Out of scope | Frontend tests, user management, states other than Ohio (but keep the extension point), pre-2020 W-4s, imputed income other than group-term life, bonuses and supplemental wages, effective-dated mid-year changes (a raise or a tax-rule change means editing the plan or the tax year), and SSE plumbing. |
 
 ## 3. Payroll rules (engine specification)
 
-Money is rounded to cents per line per check, with midpoints rounded away from zero (the same as Excel's ROUND).
+Money is rounded to cents per line per check, with midpoints rounded away from zero (the same as Excel's ROUND). There are two exceptions, both matching how ADP calculates real paychecks:
+- Social Security and Medicare are rounded on year-to-date totals (§3.6).
+- Ohio withholding drops fractions of a cent (§3.7).
 
 ### 3.1 Pay schedule
 - **Semimonthly:** two paydays per month (`PayDay1` and `PayDay2`, defaulting to the 10th and 25th). A day past the end of the month moves to the last day of the month. That gives 24 checks a year, and annualization uses 24 periods.
@@ -62,9 +65,10 @@ Every deduction line has `PreTaxFor` flags covering six wage types: Fed, State, 
 - **Employer memo lines:** these are shown but not included in net pay.
   - Employer 401k = `non-elective % × base pay + match% × min(this check's deferral, matchCap% × base pay)`.
   - Employer HSA is an amount per check.
+- **Group-term life insurance:** the taxable value per check is a memo line, not pay. It has `TaxedFor` flags, which list the wage types it's added to. By default these are SS, Medicare and City. Employers must include it in SS and Medicare wages, and Ohio cities tax Medicare wages. Withholding income tax on it is optional, and employers usually don't.
 
 ### 3.4 Taxable wages
-For each wage type: `gross − Σ deductions that are flagged pre-tax for that type`, with a minimum of 0.
+For each wage type: `gross − Σ deductions that are flagged pre-tax for that type` (with a minimum of 0), `+ group-term life` if it's taxed for that type.
 
 ### 3.5 Federal income tax withholding: IRS Pub 15-T (2026), Worksheet 1A
 1. `1c = federal wages × periods`
@@ -82,9 +86,10 @@ The withholding tables are **derived** from the tax year's statutory brackets, s
 - This derivation reproduces all six published 2026 schedules exactly (MFJ, Single and HoH, each in standard and checkbox form). Tests pin every row.
 
 ### 3.6 FICA
-- **Social Security:** `round(6.2% × min(SS wages, max(0, wage base − YTD SS wages)))`. The output also reports the final check with SS withheld and the number of checks without it.
-- **Medicare:** `round(1.45% × Medicare wages)`.
-- **Additional Medicare (withholding rule):** 0.9% on the part of this check's Medicare wages that takes this employer's year-to-date total above $200,000. This applies regardless of filing status. The $250k MFJ threshold is a liability rule and is used only in the household projection.
+Each tax is figured on year-to-date wages and rounded once. A check withholds whatever brings the year's total up to that amount, so identical checks can differ by a cent. This is how ADP calculates them. It also makes the year's Social Security end exactly on the annual maximum.
+- **Social Security:** taxed wages this check = `min(SS wages, max(0, wage base − YTD taxed wages))`. Tax = `round(6.2% × (YTD taxed wages + this check's)) − YTD SS tax`. The output also reports the final check with SS withheld and the number of checks without it.
+- **Medicare:** `round(1.45% × YTD Medicare wages including this check) − YTD Medicare tax`.
+- **Additional Medicare (withholding rule):** `round(0.9% × max(0, YTD Medicare wages including this check − $200,000)) − YTD Additional Medicare tax`. The threshold applies per employer, regardless of filing status. The $250k MFJ threshold is a liability rule and is used only in the household projection.
 
 ### 3.7 Ohio withholding: optional computer formula (effective 2026-08-01)
 `TW = state wages × periods − $650 × IT 4 exemptions`, with a minimum of 0.
@@ -95,13 +100,14 @@ The withholding tables are **derived** from the tax year's statutory brackets, s
 | $26,050 < TW ≤ $100,000 | $416.80 + 2.99% × (TW − 26,050) |
 | > $100,000 | $2,627.91 + 3.4% × (TW − 100,000) |
 
-Withholding per check = `round(annual ÷ periods)` + IT 4 additional withholding. The brackets are tax-year data, not code.
+Withholding per check = `truncate(annual ÷ periods)` + IT 4 additional withholding. The brackets are tax-year data, not code. ADP drops the fraction of a cent rather than rounding it, so a formula result of $137.8296 is withheld as $137.82.
 
 ### 3.8 City and school district (Ohio)
 - **City** (from the work locale): `round(city rate × city wages)`.
 - **School district** (from the home locale), following Ohio's 2026 employer guidelines:
   - **Earned-income base:** `round(rate × school wages)`. No exemptions apply.
   - **Traditional base:** this uses the same wages and exemptions as state withholding. The formula is `round(rate × max(0, state wages × periods − $650 × exemptions) ÷ periods)`.
+  - **Not withheld:** when a source turns school district withholding off, the tax is still calculated. It's reported as a "not withheld" memo line and left out of total taxes and net pay.
 
 ### 3.9 Net pay
 `net = gross − all taxes − all deductions + non-taxable stipend + net adjustment`
@@ -120,6 +126,7 @@ Withholding per check = `round(annual ÷ periods)` + IT 4 additional withholding
   - **actual vs. simulated:** the difference between the actual net pay and the simulated check on that date, with an "apply as net adjustment" action
 
 ### 3.11 Household tax projection (per scenario and year)
+- **Wages on the return:** each source's wages for a tax include its group-term life insurance even when payroll didn't add it to that tax's withholding wages. It's income on the return either way. This applies to federal wages, Medicare wages and school earned income.
 - **Federal:**
   - AGI = Σ federal wages + other income − adjustments.
   - Deduction = the larger of the standard deduction and the itemized deductions entered.
@@ -137,7 +144,7 @@ Withholding per check = `round(annual ÷ periods)` + IT 4 additional withholding
 - **School district:**
   - Earned-income base: rate × Σ school wages.
   - Traditional base: rate × Ohio taxable income.
-  - Either is compared with Σ school district withholding.
+  - Either is compared with Σ school district withholding. When some source doesn't withhold it, a note says to pay the balance with the return or with SD 100ES estimated payments.
 - **City:** liability equals withholding when the work city is the same as the home city. Otherwise the projection shows a "not projected" note, because the resident-city credit is out of scope.
 - **Cross-source warnings:** the family HSA limit is exceeded, or one person's 401k across all of their sources exceeds the 402(g) limit.
 
@@ -178,7 +185,7 @@ Withholding per check = `round(annual ÷ periods)` + IT 4 additional withholding
 |---|---|
 | `Scenario` | `Name`, `Description?`, `IsCurrent` (a unique partial index enforces a single current scenario) |
 | `HouseholdProfile` | one per scenario: `HomeLocaleId?`, `HsaCoverage`, `TaxFilingStatus` (default MFJ); projection inputs: `FederalOtherIncome`, `FederalAdjustments`, `FederalItemizedDeductions?`, `FederalCredits`, `OhioAdjustments`, `OhioExemptionCount`, `OhioOtherCredits` |
-| `PayrollSource` | `ScenarioId`, `PersonId`, `Name`, `EmployerName?`, `SortOrder`, `WorkLocaleId`; **pay:** `PayBasis`, `AnnualSalary?`, `HourlyRate?`, `HoursPerCheck?`, `PayFrequency`, `SemimonthlyPayDay1?`, `SemimonthlyPayDay2?`, `BiweeklyAnchorDate?`; **401k:** `Traditional401kPercent`, `Traditional401kPerCheckOverride?`, `Traditional401kPreTaxFor`, `EmployerNonElectivePercent`, `EmployerMatchPercent`, `EmployerMatchCapPercent`; **HSA:** `HsaEmployeePerCheck`, `HsaEmployerPerCheck`, `HsaPreTaxFor`; **FSA:** `HealthFsaAnnualElection`, `HealthFsaPerCheckOverride?`, `HealthFsaPreTaxFor`; **stipend:** `StipendPerCheck`, `StipendIsTaxable`; **W-4:** `W4FilingStatus`, `W4MultipleJobs`, `W4Credits`, `W4OtherIncome`, `W4Deductions`, `W4ExtraWithholding`; **IT 4:** `StateWithholdingExemptions`, `StateAdditionalWithholding`; **calibration:** `NetPayAdjustmentPerCheck`, `ActualNetPay?`, `ActualNetPayDate?` |
+| `PayrollSource` | `ScenarioId`, `PersonId`, `Name`, `EmployerName?`, `SortOrder`, `WorkLocaleId`; **pay:** `PayBasis`, `AnnualSalary?`, `HourlyRate?`, `HoursPerCheck?`, `PayFrequency`, `SemimonthlyPayDay1?`, `SemimonthlyPayDay2?`, `BiweeklyAnchorDate?`; **401k:** `Traditional401kPercent`, `Traditional401kPerCheckOverride?`, `Traditional401kPreTaxFor`, `EmployerNonElectivePercent`, `EmployerMatchPercent`, `EmployerMatchCapPercent`; **HSA:** `HsaEmployeePerCheck`, `HsaEmployerPerCheck`, `HsaPreTaxFor`; **FSA:** `HealthFsaAnnualElection`, `HealthFsaPerCheckOverride?`, `HealthFsaPreTaxFor`; **stipend:** `StipendPerCheck`, `StipendIsTaxable`; **group-term life:** `GroupTermLifePerCheck`, `GroupTermLifeTaxedFor`; **W-4:** `W4FilingStatus`, `W4MultipleJobs`, `W4Credits`, `W4OtherIncome`, `W4Deductions`, `W4ExtraWithholding`; **IT 4:** `StateWithholdingExemptions`, `StateAdditionalWithholding`, `WithholdsSchoolDistrictTax`; **calibration:** `NetPayAdjustmentPerCheck`, `ActualNetPay?`, `ActualNetPayDate?` |
 | `PayrollDeduction` | child of `PayrollSource`: `Type`, `Label`, `AnnualAmount`, `PerCheckOverride?`, `PreTaxFor`, `SortOrder` |
 
 ### Deletion rules
@@ -256,7 +263,7 @@ All endpoints require the existing `RequireUser` policy.
 - **`/payroll`:** a list of payroll sources with an "add" button, which is disabled once there are 4.
 - **`/payroll/:id` (and `/payroll/new`):** the main editor.
   - **Left side, form sections:** general (person, name, work locale); pay (basis, amount, frequency, schedule); retirement; HSA/FSA; deductions; stipend; federal W-4; Ohio IT 4; calibration.
-  - **Tax treatment grid:** rows for 401k, HSA, FSA and each deduction; columns for Fed, State, SS, Medicare, City and School (the same layout as the spreadsheet's Y/N grid). Cells that differ from the default are highlighted, and a "reset defaults" action restores them.
+  - **Tax treatment grid:** rows for 401k, HSA, FSA, each deduction and (when entered) group-term life; columns for Fed, State, SS, Medicare, City and School, under a "Taxed by" heading. A check means that tax applies to the amount, so a pre-tax deduction is unchecked for the taxes it comes out before. Deductions are still stored as `PreTaxFor` flags, and the grid shows the complement. Cells that differ from the default are highlighted, and a "reset" action restores them.
   - **Right side, live preview:** shown alongside the form as you scroll. It includes a year selector; headline figures (regular gross and net per check, annual net, the final check with SS withheld, the 401k max-out %); warnings; and the paycheck register.
   - **Live preview behavior:** the preview updates after a 300 ms debounce by calling `POST /api/payroll/preview`. It shows a stale indicator while loading, and shows validation errors inline.
   - **Saving:** save is versioned, and the page guards against leaving with unsaved changes.
@@ -315,10 +322,10 @@ Work happens on a feature branch, with one commit per milestone (subject to your
 ## 9. Known limitations and open items
 - **Roth catch-up rule (SECURE 2.0):** catch-up contributions must be Roth when the prior year's Social Security wages from the same employer exceeded $150,000 (2026 threshold). This isn't modeled because only traditional contributions are supported. It also doesn't apply in the first year with a new employer.
 - **Catch-up plan features:** the plan is assumed to allow age-50 catch-up and the age 60–63 super catch-up.
-- **Mid-year rule changes are not effective-dated.** A year's simulation applies that year's current parameters to every check. For example, Ohio's August 1, 2026 formula is applied to all 2026 checks.
+- **Mid-year rule changes are not effective-dated.** A year's simulation applies that year's current parameters to every check. For example, Ohio's August 1, 2026 formula is applied to all 2026 checks, even though checks before then used the formula effective October 1, 2025. This is deliberate: the app forecasts upcoming pay, so when a rule changes mid-year, the tax year is edited. Earlier checks in that year are then recalculated with the new rule and may no longer match their paystubs. Verify against paystubs issued after the latest change.
 - **The resident-city credit** (when the work city differs from the home city) is not modeled.
 - **27-check years:** deductions are taken from every check at the annual amount ÷ 26, and the FSA is capped at the election.
-- **Payroll provider rounding** may differ by a few cents. The net adjustment absorbs any remaining difference.
+- **Payroll provider rounding** follows ADP: year-to-date FICA, and truncated Ohio withholding. Other providers may differ by a few cents, and the net adjustment absorbs any remaining difference. The target is within $1 of each real check.
 - **Federal credits** in the projection are treated as nonrefundable, which is a simplification.
 
 ## 10. References

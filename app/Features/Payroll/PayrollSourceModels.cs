@@ -44,6 +44,9 @@ public sealed class PayrollSourceModel
 	public decimal StipendPerCheck { get; set; }
 	public bool StipendIsTaxable { get; set; }
 
+	public decimal GroupTermLifePerCheck { get; set; }
+	public TaxableWageTypes GroupTermLifeTaxedFor { get; set; } = DefaultTaxTreatment.GroupTermLife;
+
 	public FilingStatus W4FilingStatus { get; set; }
 	public bool W4MultipleJobs { get; set; }
 	public decimal W4Credits { get; set; }
@@ -53,6 +56,7 @@ public sealed class PayrollSourceModel
 
 	public int StateWithholdingExemptions { get; set; }
 	public decimal StateAdditionalWithholding { get; set; }
+	public bool WithholdsSchoolDistrictTax { get; set; } = true;
 
 	public decimal NetPayAdjustmentPerCheck { get; set; }
 	public decimal? ActualNetPay { get; set; }
@@ -120,4 +124,5 @@ public sealed record PayrollReferenceModel(
 	IReadOnlyDictionary<string, TaxableWageTypes> DefaultDeductionTreatment,
 	TaxableWageTypes DefaultTraditional401kTreatment,
 	TaxableWageTypes DefaultCafeteriaPlanTreatment,
+	TaxableWageTypes DefaultGroupTermLifeTreatment,
 	int MaxPayrollSources);

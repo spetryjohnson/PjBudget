@@ -29,7 +29,21 @@ public sealed record HouseholdTaxInputs(
 public sealed record PersonInfo(int PersonId, string Name, DateOnly? BirthDate);
 
 /// <summary>One payroll source's simulated year, with the person it belongs to.</summary>
-public sealed record SourceYear(int PersonId, string Name, WorkLocation Work, PaycheckLines Annual);
+/// <param name="GroupTermLifeTaxedFor">The wage bases payroll adds this job's taxable life insurance to.</param>
+public sealed record SourceYear(
+	int PersonId,
+	string Name,
+	WorkLocation Work,
+	PaycheckLines Annual,
+	TaxableWageTypes GroupTermLifeTaxedFor = DefaultTaxTreatment.GroupTermLife)
+{
+	/// <summary>
+	/// Wages for one tax as the annual return counts them. Taxable life insurance is income on the return even when
+	/// payroll leaves it out of that tax's withholding.
+	/// </summary>
+	public decimal ReturnWages(TaxableWageTypes type)
+		=> Annual.TaxableWages.For(type) + (GroupTermLifeTaxedFor.HasFlag(type) ? 0m : Annual.GroupTermLife);
+}
 
 public sealed record HouseholdTaxProjection(
 	int Year,

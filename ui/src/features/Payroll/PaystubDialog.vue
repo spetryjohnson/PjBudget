@@ -86,6 +86,7 @@
 				{ label: 'State income tax', value: l => l.stateIncomeTax },
 				{ label: 'City income tax', value: l => l.cityIncomeTax },
 				{ label: 'School district tax', value: l => l.schoolDistrictTax },
+				{ label: 'School district tax (not withheld; still owed)', value: l => l.schoolDistrictTaxNotWithheld, style: 'memo-row' },
 			] as Line[]).filter(used),
 		},
 		{
@@ -104,6 +105,7 @@
 				{ label: 'Net pay adjustment', value: l => l.netPayAdjustment },
 				{ label: 'Employer 401(k) (not paid to you)', value: l => l.employerRetirement, style: 'memo-row' },
 				{ label: 'Employer HSA (not paid to you)', value: l => l.employerHsa, style: 'memo-row' },
+				{ label: 'Taxable life insurance (not paid to you)', value: l => l.groupTermLife, style: 'memo-row' },
 			] as Line[]).filter(used),
 		},
 	].filter(group => group.lines.length > 0))

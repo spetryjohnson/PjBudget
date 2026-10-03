@@ -1,6 +1,6 @@
 <template>
 	<v-card>
-		<v-card-title class="section-title">Retirement, HSA &amp; FSA</v-card-title>
+		<v-card-title class="section-title">Benefits</v-card-title>
 		<v-card-text>
 			<div class="subhead">Traditional 401(k)</div>
 			<v-row dense>
@@ -76,6 +76,24 @@
 				</v-col>
 				<v-col cols="6" sm="8">
 					<v-checkbox v-model="source.stipendIsTaxable" label="Taxable (part of gross pay)" />
+				</v-col>
+			</v-row>
+
+			<div class="subhead">Group-term life insurance</div>
+			<v-row dense>
+				<v-col cols="6" sm="4">
+					<NumberField
+						v-model="source.groupTermLifePerCheck"
+						label="Taxable value"
+						prefix="$"
+						suffix="/check"
+						hint="The G.T.L. line on your paystub"
+						:error-messages="errors.groupTermLifePerCheck"
+					/>
+				</v-col>
+				<v-col cols="12" sm="8" class="helper">
+					Employer-paid coverage over $50,000 is taxable. It isn't paid to you, but it raises the wages some taxes
+					apply to; see Tax treatment.
 				</v-col>
 			</v-row>
 		</v-card-text>

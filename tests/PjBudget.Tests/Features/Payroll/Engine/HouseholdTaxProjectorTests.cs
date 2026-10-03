@@ -169,6 +169,52 @@ public class HouseholdTaxProjectorTests
 	}
 
 	[Test]
+	public void SchoolDistrictTaxThatIsntWithheldIsStillOwed()
+	{
+		var notWithheld = SamJob with { Annual = SamJob.Annual with { SchoolDistrictTax = 0m, SchoolDistrictTaxNotWithheld = 600m } };
+
+		var school = Section(_projector.Project(Request([PatJob, notWithheld])), "School district");
+
+		// 1% of 160,000 of earned income is owed, but only Pat's job withheld any of it.
+		Assert.Multiple(() =>
+		{
+			Assert.That(school.Liability, Is.EqualTo(1_600m));
+			Assert.That(school.Withheld, Is.EqualTo(1_000m));
+			Assert.That(school.RefundOrBalanceDue, Is.EqualTo(-600m));
+			Assert.That(school.Note, Does.Contain("estimated payments"));
+		});
+	}
+
+	[Test]
+	public void TaxableLifeInsuranceIsIncomeOnTheReturnEvenWhenPayrollDoesntWithholdOnIt()
+	{
+		// By default, payroll leaves life insurance out of federal and school wages, but the return still counts it.
+		var withLifeInsurance = PatJob with { Annual = PatJob.Annual with { GroupTermLife = 120m } };
+
+		var projection = _projector.Project(Request([withLifeInsurance, SamJob]));
+
+		Assert.Multiple(() =>
+		{
+			Assert.That(Section(projection, "Federal").Lines.Single(l => l.Label == "Wages").Amount, Is.EqualTo(160_120m));
+			Assert.That(Section(projection, "School district").Lines.Single().Amount, Is.EqualTo(160_120m));
+		});
+	}
+
+	[Test]
+	public void LifeInsuranceAlreadyInPayrollWagesIsntCountedTwice()
+	{
+		var withLifeInsurance = PatJob with
+		{
+			Annual = PatJob.Annual with { GroupTermLife = 120m },
+			GroupTermLifeTaxedFor = TaxableWageTypes.All,
+		};
+
+		var federal = Section(_projector.Project(Request([withLifeInsurance, SamJob])), "Federal");
+
+		Assert.That(federal.Lines.Single(l => l.Label == "Wages").Amount, Is.EqualTo(160_000m));
+	}
+
+	[Test]
 	public void WarnsAboutCombinedLimitsAndAMissingHome()
 	{
 		var first = new SourceYear(1, "Old job", Work, Annual(100_000m, 100_000m, 12_000m, 3_000m, 2_000m, 0m, traditional401k: 20_000m, hsa: 5_000m));

@@ -32,6 +32,14 @@
 				<v-col cols="6" sm="3">
 					<NumberField v-model="source.stateAdditionalWithholding" label="Additional" prefix="$" suffix="/check" hint="Line 5" :error-messages="errors.stateAdditionalWithholding" />
 				</v-col>
+				<v-col cols="12" sm="6">
+					<v-checkbox
+						v-model="source.withholdsSchoolDistrictTax"
+						label="Withhold school district tax"
+						hint="Uncheck if your paystub has no school district line. It's still owed, and the household tax projection includes it."
+						persistent-hint
+					/>
+				</v-col>
 			</v-row>
 		</v-card-text>
 	</v-card>

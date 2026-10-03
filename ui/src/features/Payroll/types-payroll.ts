@@ -1,6 +1,9 @@
 import type { DeductionType, FilingStatus, PayBasis, PayFrequency, WageType } from '../../lib/types-domain'
 
-/** `*Percent` fields are 0–100; amounts are dollars. `*PreTaxFor` lists the wage bases a deduction reduces. */
+/**
+ * `*Percent` fields are 0–100; amounts are dollars. `*PreTaxFor` lists the wage bases a deduction reduces, and
+ * `groupTermLifeTaxedFor` lists the ones taxable life insurance is added to.
+ */
 export interface PayrollSource {
 	id: number
 	version: string
@@ -37,6 +40,9 @@ export interface PayrollSource {
 	stipendPerCheck: number
 	stipendIsTaxable: boolean
 
+	groupTermLifePerCheck: number
+	groupTermLifeTaxedFor: WageType[]
+
 	w4FilingStatus: FilingStatus
 	w4MultipleJobs: boolean
 	w4Credits: number
@@ -46,6 +52,7 @@ export interface PayrollSource {
 
 	stateWithholdingExemptions: number
 	stateAdditionalWithholding: number
+	withholdsSchoolDistrictTax: boolean
 
 	netPayAdjustmentPerCheck: number
 	actualNetPay: number | null
@@ -88,6 +95,7 @@ export interface PayrollReference {
 	defaultDeductionTreatment: Record<DeductionType, WageType[]>
 	defaultTraditional401kTreatment: WageType[]
 	defaultCafeteriaPlanTreatment: WageType[]
+	defaultGroupTermLifeTreatment: WageType[]
 	maxPayrollSources: number
 }
 
@@ -117,9 +125,13 @@ export interface PaycheckLines {
 	stateIncomeTax: number
 	cityIncomeTax: number
 	schoolDistrictTax: number
+	/** Owed but not withheld by this employer, so it isn't in `totalTaxes` or taken out of net pay. */
+	schoolDistrictTaxNotWithheld: number
 	nonTaxableStipend: number
 	netPayAdjustment: number
 	netPay: number
+	/** Taxable life insurance; it raises taxable wages but isn't paid. */
+	groupTermLife: number
 	employerRetirement: number
 	employerHsa: number
 	totalTaxes: number

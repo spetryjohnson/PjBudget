@@ -1,6 +1,11 @@
 namespace PjBudget.Features.Payroll.Engine;
 
-public readonly record struct FicaYearToDate(decimal SocialSecurityTaxedWages, decimal SocialSecurityTax, decimal MedicareWages);
+public readonly record struct FicaYearToDate(
+	decimal SocialSecurityTaxedWages,
+	decimal SocialSecurityTax,
+	decimal MedicareWages,
+	decimal MedicareTax,
+	decimal AdditionalMedicareTax);
 
 public readonly record struct FicaTaxes(
 	decimal SocialSecurityTaxedWages,
@@ -12,23 +17,30 @@ public readonly record struct FicaTaxes(
 /// Social Security and Medicare as one employer withholds them. Both annual thresholds (the SS wage base and the
 /// $200k Additional Medicare threshold) are per employer, so a second job starts over at zero.
 /// </summary>
+/// <remarks>
+/// Each tax is figured on year-to-date wages and rounded once, and a check withholds whatever brings the year's total
+/// up to that. ADP works this way, so a check can be a cent more or less than its own wages times the rate. Rounding
+/// each check separately would drift from real paystubs. Figuring the year's total this way also makes Social
+/// Security end exactly on the annual maximum.
+/// </remarks>
 public static class FicaCalculator
 {
 	public static FicaTaxes Calculate(decimal socialSecurityWages, decimal medicareWages, FicaYearToDate ytd, FicaParameters fica)
 	{
 		var remainingWageBase = Math.Max(0m, fica.SocialSecurityWageBase - ytd.SocialSecurityTaxedWages);
 		var ssTaxedWages = Math.Min(socialSecurityWages, remainingWageBase);
+		var socialSecurity = DueThisCheck(ytd.SocialSecurityTaxedWages + ssTaxedWages, fica.SocialSecurityRate, ytd.SocialSecurityTax);
 
-		// Rounding each check can push the year's total a few cents past the maximum; the final check absorbs it.
-		var remainingSsTax = Math.Max(0m, fica.MaxSocialSecurityTax - ytd.SocialSecurityTax);
-		var socialSecurity = Math.Min(Money.Round(ssTaxedWages * fica.SocialSecurityRate), remainingSsTax);
+		var medicareWagesToDate = ytd.MedicareWages + medicareWages;
+		var medicare = DueThisCheck(medicareWagesToDate, fica.MedicareRate, ytd.MedicareTax);
 
-		var medicare = Money.Round(medicareWages * fica.MedicareRate);
-
-		var wagesAboveThreshold = Math.Max(0m,
-			ytd.MedicareWages + medicareWages - Math.Max(ytd.MedicareWages, fica.AdditionalMedicareWithholdingThreshold));
-		var additionalMedicare = Money.Round(wagesAboveThreshold * fica.AdditionalMedicareRate);
+		var wagesAboveThreshold = Math.Max(0m, medicareWagesToDate - fica.AdditionalMedicareWithholdingThreshold);
+		var additionalMedicare = DueThisCheck(wagesAboveThreshold, fica.AdditionalMedicareRate, ytd.AdditionalMedicareTax);
 
 		return new FicaTaxes(ssTaxedWages, socialSecurity, medicare, additionalMedicare);
 	}
+
+	/// <summary>The tax on wages so far this year, less what earlier checks already withheld.</summary>
+	private static decimal DueThisCheck(decimal wagesToDate, decimal rate, decimal alreadyWithheld)
+		=> Math.Max(0m, Money.Round(wagesToDate * rate) - alreadyWithheld);
 }

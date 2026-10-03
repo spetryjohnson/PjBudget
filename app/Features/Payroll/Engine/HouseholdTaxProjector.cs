@@ -39,7 +39,7 @@ public sealed class HouseholdTaxProjector
 		var rules = request.TaxYear.FederalRulesFor(inputs.FilingStatus);
 		var sources = request.Sources;
 
-		var wages = sources.Sum(s => s.Annual.TaxableWages.Federal);
+		var wages = sources.Sum(s => s.ReturnWages(TaxableWageTypes.Federal));
 		agi = wages + inputs.FederalOtherIncome - inputs.FederalAdjustments;
 
 		var itemized = inputs.FederalItemizedDeductions ?? 0m;
@@ -51,7 +51,7 @@ public sealed class HouseholdTaxProjector
 		var credits = Math.Min(inputs.FederalCredits, incomeTax);
 
 		// Withholding uses a $200k threshold per employer, but what's owed depends on combined wages and filing status.
-		var medicareWages = sources.Sum(s => s.Annual.TaxableWages.Medicare);
+		var medicareWages = sources.Sum(s => s.ReturnWages(TaxableWageTypes.Medicare));
 		var additionalMedicare = Money.Round(
 			Math.Max(0m, medicareWages - rules.AdditionalMedicareLiabilityThreshold) * request.TaxYear.Fica.AdditionalMedicareRate);
 

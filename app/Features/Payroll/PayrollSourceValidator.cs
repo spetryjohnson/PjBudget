@@ -90,6 +90,7 @@ public sealed class PayrollSourceModelValidator : AbstractValidator<PayrollSourc
 		RuleFor(x => x.HsaEmployerPerCheck).GreaterThanOrEqualTo(0);
 		RuleFor(x => x.HealthFsaAnnualElection).GreaterThanOrEqualTo(0);
 		RuleFor(x => x.StipendPerCheck).GreaterThanOrEqualTo(0);
+		RuleFor(x => x.GroupTermLifePerCheck).GreaterThanOrEqualTo(0);
 
 		RuleFor(x => x.W4Credits).GreaterThanOrEqualTo(0);
 		RuleFor(x => x.W4OtherIncome).GreaterThanOrEqualTo(0);

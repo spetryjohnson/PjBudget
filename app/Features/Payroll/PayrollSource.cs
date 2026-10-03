@@ -10,7 +10,8 @@ namespace PjBudget.Features.Payroll;
 
 /// <summary>
 /// One job's pay and payroll elections within a scenario. <c>*Percent</c> values are 0–100; other amounts are dollars.
-/// Each <c>*PreTaxFor</c> flag set lists the wage bases that deduction reduces.
+/// Each <c>*PreTaxFor</c> flag set lists the wage bases that deduction reduces; <see cref="GroupTermLifeTaxedFor"/>
+/// lists the ones taxable life insurance is added to.
 /// </summary>
 public class PayrollSource : IAuditedEntity, IVersionedEntity
 {
@@ -55,6 +56,10 @@ public class PayrollSource : IAuditedEntity, IVersionedEntity
 	public decimal StipendPerCheck { get; set; }
 	public bool StipendIsTaxable { get; set; }
 
+	/// <summary>Taxable group-term life insurance per check (the paystub's "GTL" line). It isn't paid out.</summary>
+	public decimal GroupTermLifePerCheck { get; set; }
+	public TaxableWageTypes GroupTermLifeTaxedFor { get; set; }
+
 	public FilingStatus W4FilingStatus { get; set; }
 	public bool W4MultipleJobs { get; set; }
 	public decimal W4Credits { get; set; }
@@ -64,6 +69,9 @@ public class PayrollSource : IAuditedEntity, IVersionedEntity
 
 	public int StateWithholdingExemptions { get; set; }
 	public decimal StateAdditionalWithholding { get; set; }
+
+	/// <summary>False when the employer leaves the home school district's tax to be paid separately.</summary>
+	public bool WithholdsSchoolDistrictTax { get; set; } = true;
 
 	/// <summary>Absorbs whatever difference from the real paycheck the model can't explain, so net pay matches exactly.</summary>
 	public decimal NetPayAdjustmentPerCheck { get; set; }

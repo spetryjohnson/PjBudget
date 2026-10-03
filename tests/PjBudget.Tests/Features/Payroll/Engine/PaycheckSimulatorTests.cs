@@ -45,13 +45,13 @@ public class PaycheckSimulatorTests
 			Assert.That(lines.FederalIncomeTax, Is.EqualTo(328.33m));
 			Assert.That(lines.SocialSecurityTax, Is.EqualTo(294.50m));
 			Assert.That(lines.MedicareTax, Is.EqualTo(68.88m));
-			Assert.That(lines.StateIncomeTax, Is.EqualTo(112.33m));
+			Assert.That(lines.StateIncomeTax, Is.EqualTo(112.32m));
 			Assert.That(lines.CityIncomeTax, Is.EqualTo(95.00m));
 			Assert.That(lines.SchoolDistrictTax, Is.EqualTo(42.50m));
 			Assert.That(lines.NonTaxableStipend, Is.EqualTo(25m));
 
-			// 5,000 − 941.54 taxes − 760 deductions + 25 stipend
-			Assert.That(lines.NetPay, Is.EqualTo(3_323.46m));
+			// 5,000 − 941.53 taxes − 760 deductions + 25 stipend
+			Assert.That(lines.NetPay, Is.EqualTo(3_323.47m));
 		});
 	}
 
@@ -64,8 +64,13 @@ public class PaycheckSimulatorTests
 		Assert.Multiple(() =>
 		{
 			Assert.That(summary.CheckCount, Is.EqualTo(24));
-			Assert.That(summary.AnnualTotals.NetPay, Is.EqualTo(79_763.04m));
-			Assert.That(summary.RegularNetPay, Is.EqualTo(3_323.46m));
+
+			// Medicare on 4,750 is 68.875, so checks alternate between 68.88 and 68.87 as the year-to-date total stays
+			// on the rate. The year withholds 1,653.00 instead of 24 × 68.88, which leaves 12 cents more net pay.
+			Assert.That(simulation.Checks.Select(c => c.Current.MedicareTax).Take(4), Is.EqualTo(new[] { 68.88m, 68.87m, 68.88m, 68.87m }));
+			Assert.That(summary.AnnualTotals.MedicareTax, Is.EqualTo(1_653.00m));
+			Assert.That(summary.AnnualTotals.NetPay, Is.EqualTo(79_763.40m));
+			Assert.That(summary.RegularNetPay, Is.EqualTo(3_323.47m));
 			Assert.That(summary.FinalSocialSecurityCheck, Is.EqualTo(24));
 			Assert.That(summary.ChecksWithoutSocialSecurity, Is.EqualTo(0));
 			Assert.That(summary.AdditionalMedicareStartsOnCheck, Is.Null);
@@ -201,7 +206,7 @@ public class PaycheckSimulatorTests
 
 		var comparison = _simulator.Simulate(Request(source)).Summary.ActualComparison;
 
-		Assert.That(comparison, Is.EqualTo(new ActualPaycheckComparison(new DateOnly(2026, 3, 10), 5, 3_330m, 3_323.46m, 6.54m)));
+		Assert.That(comparison, Is.EqualTo(new ActualPaycheckComparison(new DateOnly(2026, 3, 10), 5, 3_330m, 3_323.47m, 6.53m)));
 	}
 
 	[Test]
@@ -230,7 +235,52 @@ public class PaycheckSimulatorTests
 			// 3% of 5,000 + 50% of the 300 (6% of pay) of the 500 deferred
 			Assert.That(lines.EmployerRetirement, Is.EqualTo(300m));
 			Assert.That(lines.EmployerHsa, Is.EqualTo(20m));
-			Assert.That(lines.NetPay, Is.EqualTo(3_323.46m));
+			Assert.That(lines.NetPay, Is.EqualTo(3_323.47m));
+		});
+	}
+
+	[Test]
+	public void TaxableLifeInsuranceRaisesTaxableWagesButIsNotPaid()
+	{
+		var baseline = _simulator.Simulate(Request(TypicalSource())).Checks[0].Current;
+		var simulation = _simulator.Simulate(Request(TypicalSource() with { GroupTermLifePerCheck = 4.20m }));
+		var lines = simulation.Checks[0].Current;
+
+		Assert.Multiple(() =>
+		{
+			// By default it's only added to Social Security, Medicare and city wages.
+			Assert.That(lines.TaxableWages, Is.EqualTo(new TaxableWages(4_250m, 4_250m, 4_754.20m, 4_754.20m, 4_754.20m, 4_250m)));
+			Assert.That(lines.GrossPay, Is.EqualTo(baseline.GrossPay));
+			Assert.That(lines.GroupTermLife, Is.EqualTo(4.20m));
+
+			// Social Security rises 0.26 (to 294.76), Medicare 0.06 (to 68.94) and city tax 0.08 (to 95.08), all out of the same pay.
+			Assert.That(lines.NetPay, Is.EqualTo(baseline.NetPay - 0.40m));
+			Assert.That(simulation.Summary.AnnualTotals.GroupTermLife, Is.EqualTo(100.80m));
+		});
+	}
+
+	[Test]
+	public void TaxableLifeInsuranceCanBeTaxedForIncomeTaxesToo()
+	{
+		var source = TypicalSource() with { GroupTermLifePerCheck = 4.20m, GroupTermLifeTaxedFor = TaxableWageTypes.All };
+
+		var wages = _simulator.Simulate(Request(source)).Checks[0].Current.TaxableWages;
+
+		Assert.That(wages, Is.EqualTo(new TaxableWages(4_254.20m, 4_254.20m, 4_754.20m, 4_754.20m, 4_754.20m, 4_254.20m)));
+	}
+
+	[Test]
+	public void SchoolDistrictTaxCanBeLeftForTheReturn()
+	{
+		var withheld = _simulator.Simulate(Request(TypicalSource())).Checks[0].Current;
+		var lines = _simulator.Simulate(Request(TypicalSource() with { WithholdsSchoolDistrictTax = false })).Checks[0].Current;
+
+		Assert.Multiple(() =>
+		{
+			Assert.That(lines.SchoolDistrictTax, Is.EqualTo(0m));
+			Assert.That(lines.SchoolDistrictTaxNotWithheld, Is.EqualTo(42.50m), "still calculated so it can be planned for");
+			Assert.That(lines.TotalTaxes, Is.EqualTo(withheld.TotalTaxes - 42.50m));
+			Assert.That(lines.NetPay, Is.EqualTo(withheld.NetPay + 42.50m));
 		});
 	}
 

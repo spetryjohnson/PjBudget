@@ -37,7 +37,11 @@ public sealed class HouseholdTaxProjectionService
 
 		var sources = simulations
 			.Select(s => new SourceYear(
-				s.Source.PersonId, s.Source.Name, locales[s.Source.WorkLocaleId].ToWorkLocation(), s.Simulation.Summary.AnnualTotals))
+				s.Source.PersonId,
+				s.Source.Name,
+				locales[s.Source.WorkLocaleId].ToWorkLocation(),
+				s.Simulation.Summary.AnnualTotals,
+				s.Source.GroupTermLifeTaxedFor))
 			.ToList();
 
 		var inputs = new HouseholdTaxInputs(

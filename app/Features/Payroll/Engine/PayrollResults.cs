@@ -26,6 +26,17 @@ public readonly record struct TaxableWages(
 	public static TaxableWages operator +(TaxableWages a, TaxableWages b) => new(
 		a.Federal + b.Federal, a.State + b.State, a.SocialSecurity + b.SocialSecurity,
 		a.Medicare + b.Medicare, a.City + b.City, a.School + b.School);
+
+	public decimal For(TaxableWageTypes type) => type switch
+	{
+		TaxableWageTypes.Federal => Federal,
+		TaxableWageTypes.State => State,
+		TaxableWageTypes.SocialSecurity => SocialSecurity,
+		TaxableWageTypes.Medicare => Medicare,
+		TaxableWageTypes.City => City,
+		TaxableWageTypes.School => School,
+		_ => throw new ArgumentOutOfRangeException(nameof(type), type, "Pass a single wage type."),
+	};
 }
 
 /// <summary>
@@ -55,9 +66,18 @@ public sealed record PaycheckLines
 	public decimal CityIncomeTax { get; init; }
 	public decimal SchoolDistrictTax { get; init; }
 
+	/// <summary>
+	/// School district tax the employer doesn't withhold. It's still owed, so it's tracked for planning, but it
+	/// doesn't come out of net pay or count in <see cref="TotalTaxes"/>.
+	/// </summary>
+	public decimal SchoolDistrictTaxNotWithheld { get; init; }
+
 	public decimal NonTaxableStipend { get; init; }
 	public decimal NetPayAdjustment { get; init; }
 	public decimal NetPay { get; init; }
+
+	/// <summary>Taxable group-term life insurance. It only raises taxable wages; it isn't part of pay.</summary>
+	public decimal GroupTermLife { get; init; }
 
 	/// <summary>Employer 401(k) contributions. Shown for retirement totals; not part of pay.</summary>
 	public decimal EmployerRetirement { get; init; }
@@ -90,9 +110,11 @@ public sealed record PaycheckLines
 		StateIncomeTax = StateIncomeTax + other.StateIncomeTax,
 		CityIncomeTax = CityIncomeTax + other.CityIncomeTax,
 		SchoolDistrictTax = SchoolDistrictTax + other.SchoolDistrictTax,
+		SchoolDistrictTaxNotWithheld = SchoolDistrictTaxNotWithheld + other.SchoolDistrictTaxNotWithheld,
 		NonTaxableStipend = NonTaxableStipend + other.NonTaxableStipend,
 		NetPayAdjustment = NetPayAdjustment + other.NetPayAdjustment,
 		NetPay = NetPay + other.NetPay,
+		GroupTermLife = GroupTermLife + other.GroupTermLife,
 		EmployerRetirement = EmployerRetirement + other.EmployerRetirement,
 		EmployerHsa = EmployerHsa + other.EmployerHsa,
 	};

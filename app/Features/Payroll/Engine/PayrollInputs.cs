@@ -51,8 +51,21 @@ public sealed record PayrollSourceInput
 	public decimal StipendPerCheck { get; init; }
 	public bool StipendIsTaxable { get; init; }
 
+	/// <summary>
+	/// The taxable value of employer-paid group-term life insurance over $50,000 (the "GTL" line on a paystub). It
+	/// isn't paid out, but it's added to the wages for each tax in <see cref="GroupTermLifeTaxedFor"/>.
+	/// </summary>
+	public decimal GroupTermLifePerCheck { get; init; }
+	public TaxableWageTypes GroupTermLifeTaxedFor { get; init; } = DefaultTaxTreatment.GroupTermLife;
+
 	public FederalW4 W4 { get; init; } = new(FilingStatus.Single);
 	public StateWithholdingElections StateElections { get; init; } = new(0, 0m);
+
+	/// <summary>
+	/// Whether the employer withholds the home school district's income tax. When it doesn't, the tax is still
+	/// calculated so it can be planned for, but it doesn't come out of net pay.
+	/// </summary>
+	public bool WithholdsSchoolDistrictTax { get; init; } = true;
 
 	public decimal NetPayAdjustmentPerCheck { get; init; }
 	public ActualPaycheck? ActualPaycheck { get; init; }
@@ -93,11 +106,19 @@ public sealed record HomeLocation(
 	SchoolDistrictTaxBase? SchoolDistrictTaxBase);
 
 /// <summary>
-/// The wage bases each kind of deduction reduces by default. These follow federal law and Ohio's municipal rules,
-/// and any of them can be changed per source to match how an employer actually runs payroll.
+/// The wage bases each kind of deduction reduces by default, and the ones taxable life insurance is added to. These
+/// follow federal law and Ohio's municipal rules, and any of them can be changed per source to match how an employer
+/// actually runs payroll.
 /// </summary>
 public static class DefaultTaxTreatment
 {
+	/// <summary>
+	/// Group-term life insurance over $50,000 is taxable income. Employers must add it to Social Security and Medicare
+	/// wages, and Ohio cities tax Medicare wages. Withholding income tax on it is optional, and employers usually
+	/// skip it.
+	/// </summary>
+	public const TaxableWageTypes GroupTermLife = TaxableWageTypes.SocialSecurity | TaxableWageTypes.Medicare | TaxableWageTypes.City;
+
 	/// <summary>
 	/// 401(k) deferrals avoid income tax but not FICA, and Ohio cities add them back (ORC 718.01). They also stay
 	/// out of school district earned income, because that base only counts income included in Ohio AGI.

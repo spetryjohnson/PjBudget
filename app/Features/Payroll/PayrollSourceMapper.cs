@@ -36,6 +36,8 @@ internal static class PayrollSourceMapper
 		HealthFsaPreTaxFor = s.HealthFsaPreTaxFor,
 		StipendPerCheck = s.StipendPerCheck,
 		StipendIsTaxable = s.StipendIsTaxable,
+		GroupTermLifePerCheck = s.GroupTermLifePerCheck,
+		GroupTermLifeTaxedFor = s.GroupTermLifeTaxedFor,
 		W4FilingStatus = s.W4FilingStatus,
 		W4MultipleJobs = s.W4MultipleJobs,
 		W4Credits = s.W4Credits,
@@ -44,6 +46,7 @@ internal static class PayrollSourceMapper
 		W4ExtraWithholding = s.W4ExtraWithholding,
 		StateWithholdingExemptions = s.StateWithholdingExemptions,
 		StateAdditionalWithholding = s.StateAdditionalWithholding,
+		WithholdsSchoolDistrictTax = s.WithholdsSchoolDistrictTax,
 		NetPayAdjustmentPerCheck = s.NetPayAdjustmentPerCheck,
 		ActualNetPay = s.ActualNetPay,
 		ActualNetPayDate = s.ActualNetPayDate,
@@ -96,6 +99,8 @@ internal static class PayrollSourceMapper
 		s.HealthFsaPreTaxFor = m.HealthFsaPreTaxFor;
 		s.StipendPerCheck = m.StipendPerCheck;
 		s.StipendIsTaxable = m.StipendIsTaxable;
+		s.GroupTermLifePerCheck = m.GroupTermLifePerCheck;
+		s.GroupTermLifeTaxedFor = m.GroupTermLifeTaxedFor;
 		s.W4FilingStatus = m.W4FilingStatus;
 		s.W4MultipleJobs = m.W4MultipleJobs;
 		s.W4Credits = m.W4Credits;
@@ -104,6 +109,7 @@ internal static class PayrollSourceMapper
 		s.W4ExtraWithholding = m.W4ExtraWithholding;
 		s.StateWithholdingExemptions = m.StateWithholdingExemptions;
 		s.StateAdditionalWithholding = m.StateAdditionalWithholding;
+		s.WithholdsSchoolDistrictTax = m.WithholdsSchoolDistrictTax;
 		s.NetPayAdjustmentPerCheck = m.NetPayAdjustmentPerCheck;
 		s.ActualNetPay = m.ActualNetPay;
 		s.ActualNetPayDate = m.ActualNetPayDate;
@@ -144,8 +150,11 @@ internal static class PayrollSourceMapper
 			.ToList(),
 		StipendPerCheck = m.StipendPerCheck,
 		StipendIsTaxable = m.StipendIsTaxable,
+		GroupTermLifePerCheck = m.GroupTermLifePerCheck,
+		GroupTermLifeTaxedFor = m.GroupTermLifeTaxedFor,
 		W4 = new FederalW4(m.W4FilingStatus, m.W4MultipleJobs, m.W4Credits, m.W4OtherIncome, m.W4Deductions, m.W4ExtraWithholding),
 		StateElections = new StateWithholdingElections(m.StateWithholdingExemptions, m.StateAdditionalWithholding),
+		WithholdsSchoolDistrictTax = m.WithholdsSchoolDistrictTax,
 		NetPayAdjustmentPerCheck = m.NetPayAdjustmentPerCheck,
 		ActualPaycheck = m.ActualNetPay is { } net && m.ActualNetPayDate is { } date ? new ActualPaycheck(date, net) : null,
 	};
