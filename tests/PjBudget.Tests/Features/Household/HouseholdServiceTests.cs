@@ -57,6 +57,21 @@ public class HouseholdServiceTests
 	}
 
 	[Test]
+	public async Task ChangingTheHomeLocaleReplacesTheLoadedOne()
+	{
+		var baseline = await TestServices.SeedBaselineAsync(_database);
+		var other = await TestServices.Locales(_database.CreateContext()).CreateAsync(
+			new LocaleModel { Name = "Otherville", City = "Otherville", StateCode = "OH", MunicipalTaxRate = 0.025m }, CancellationToken.None);
+
+		var household = await TestServices.Household(_database.CreateContext()).GetAsync(baseline.ScenarioId, CancellationToken.None);
+		household.HomeLocaleId = other.Id;
+		await TestServices.Household(_database.CreateContext()).UpdateAsync(baseline.ScenarioId, household, CancellationToken.None);
+
+		var reloaded = await TestServices.Household(_database.CreateContext()).GetAsync(baseline.ScenarioId, CancellationToken.None);
+		Assert.That(reloaded.HomeLocaleId, Is.EqualTo(other.Id));
+	}
+
+	[Test]
 	public async Task AHomeInAnUnsupportedStateIsRejected()
 	{
 		var baseline = await TestServices.SeedBaselineAsync(_database);

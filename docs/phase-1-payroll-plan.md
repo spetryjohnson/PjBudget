@@ -1,6 +1,6 @@
 # Phase 1: Payroll Modeling (Implementation Plan)
 
-> **Status:** draft for review. **Scope:** payroll modeling only. The budget matrix, the scenario UI and transaction analysis come in later phases.
+> **Status:** implemented on branch `phase-1-payroll` (milestones M1–M8). **Scope:** payroll modeling only. The budget matrix, the scenario UI and transaction analysis come in later phases.
 > This document contains no personal data and is safe to commit.
 
 ## 1. Goal
